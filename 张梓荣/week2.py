@@ -10,6 +10,9 @@ import matplotlib.pyplot as plot
 import numpy as np
 from skimage.color import rgb2gray
 
+
+print(np.floor(3.4))
+print(np.ceil(3.4))
 # 原图
 img0 = cv2.imread('lenna.png')
 plot.subplot(331)
