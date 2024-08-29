@@ -19,7 +19,7 @@ def process(img, distWeight, distHeight):
             if srcX >= srcHeight:
                 srcX = srcHeight - 1
             if srcY >= srcWidth:
-                srcY = srcWidth - 1
+                srcY  = srcWidth - 1
             distImg[distX, distY] = img[srcX, srcY]
     return distImg
 
