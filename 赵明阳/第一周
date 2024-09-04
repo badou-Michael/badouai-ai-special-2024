@@ -1,0 +1,26 @@
+## Hello ，first week in AI
+import chardet
+
+def analyze_log(log_file, keywords):
+    # 检测输入日志文件的编码
+    with open(log_file, 'rb') as raw_file:
+        detected_encoding = chardet.detect(raw_file.read())['encoding']
+    with open(log_file, 'r', encoding=detected_encoding) as file:
+        lines = file.readlines()
+    result_lines = []
+    for keyword in keywords:
+        result_lines.extend([line for line in lines if keyword in line])
+    # 使用检测到的编码打开 error.log 文件并写入结果
+    with open('C:/Users/zhaom/Desktop/work/AIproject/helloworld/error.log', 'w', encoding=detected_encoding) as error_file:
+        error_file.writelines(result_lines)
+    count = 0
+    for line in lines:
+        for keyword in keywords:
+            if keyword in line:
+                count += 1
+    return count
+
+log_file_path = "C:/Users/zhaom/Desktop/fsdownload/prd-sip-indoor-be-f9b9c5c9f-6dzds-smice.log"
+keywords_to_search = ["error", "long time transaction"]
+occurrences = analyze_log(log_file_path, keywords_to_search)
+print(f"The keywords '{', '.join(keywords_to_search)}' appear {occurrences} times in the log file and the results are written to 'error.log'.")
