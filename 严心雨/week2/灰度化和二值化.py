@@ -52,14 +52,14 @@ for i1 in range(h1):
         if (image_new[i1, j1] <=128):#因为上面是用CV2读的图片，没有经过归一化，所以没有用0.5作为临界点。如果用matplotlib.pyplot 读取图片后，会自动归一化成0-1，然后就用0.5作为临界点
             image_new[i1, j1]=0
         else:
-            image_new[i1, j1] = 1
+            image_new[i1, j1] = 255
 plt.subplot(111)
 plt.imshow(image_new,cmap='gray')
 plt.show()
 
 #二值化
 #法2
-image_wb=np.where(image_new <= 128,0,1)#因为image_new是经过灰度化的，每个像素只有一个值，所以可以和128做比较
+image_wb=np.where(image_new <= 128,0,255)#因为image_new是经过灰度化的，每个像素只有一个值，所以可以和128做比较
 plt.subplot(111)
 plt.imshow(image_wb,cmap='gray')
 plt.show()
