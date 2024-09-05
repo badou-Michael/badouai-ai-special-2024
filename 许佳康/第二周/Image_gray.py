@@ -19,16 +19,22 @@ print("image show gray: %s"%img_gray)
 cv2.imshow("image show gray",img_gray)
 cv2.waitKey(0)  #等待一段时间，不要让窗口立刻关闭
 
-#for循环二值化： 非0 即1  有问题！！！ 显示为全黑？？？？？
+#for循环二值化： 非0 即1  有问题！！！ 显示为全黑？？？？？ 解决策略： 要么范围是0-255 0 代表纯黑
+# 255 代表白 （cv2.imshow（）默认是 0-255 ）
 
+cv2.destroyAllWindows()
+img_binary = np.zeros([h,w],img_gray.dtype)
 for i in range(h):
     for j in range(w):
-        m = img_gray[i][j] / 255.0
-        if(m <= 0.5): img_gray[i][j] = 0
-        else :img_gray[i][j] = 1
+        m = img_gray[i][j]
+        #print("m的值 打印： ",m,"  ")
+        if(m < 128): img_binary[i][j] = 0
+        else: img_binary[i][j] = 255
+# img_binary = cv2.threshold(img_gray, 128, 255,cv2.THRESH_BINARY)
 
-print("image show binary: %s"%img_gray)
-cv2.imshow("image show binary",img_gray)
+print("image show binary: %s"%img_binary)
+cv2.imshow("image show binary",img_binary)
+print(img_gray.shape)
 cv2.waitKey(0)  #等待一段时间，不要让窗口立刻关闭
 
 
@@ -56,7 +62,6 @@ print(img_binary.shape)
 plt.subplot(223)
 plt.imshow(img_binary, cmap='gray')
 plt.show()
-
 
 
 
