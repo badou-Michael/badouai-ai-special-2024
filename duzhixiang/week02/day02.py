@@ -47,6 +47,7 @@ def binary_picture(img, img_type=1):
                 new_raying_img[_h, _w] = 0 if u >= 255 / 2 else 255
     return new_raying_img
 
+
 def color_shift(img, img_type):
     """色彩加深"""
     h, w = img.shape[:2]
