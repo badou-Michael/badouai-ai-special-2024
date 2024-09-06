@@ -1,0 +1,41 @@
+from skimage.color import rgb2gray
+import numpy as np
+import matplotlib.pyplot as plt
+from PIL import Image
+import cv2
+
+img = cv2.imread("lenna.png")
+
+
+#----------------------灰度化----------------------------------
+h,w = img.shape[:2]
+img_gray = np.zeros([h,w],img.dtype)
+for i in range(h):
+    for j in range(w):
+        m = img[i,j]   #取出行列中的RGB数据
+        img_gray[i,j] = int(m[0]*0.11+m[1]*0.59+m[2]*0.3)     #将取出的BGR进行浮点算法转为int 赋给每个像素
+
+
+cv2.imshow("image show gray",img_gray)          #这个方法里面的字符串代表着创建窗体的名称
+cv2.waitKey()
+
+#或者直接使用 openCV中的RGB转换灰度算法
+
+img_gray1 = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+cv2.imshow("窗口2",img_gray1)
+cv2.waitKey()
+
+cv2.destroyAllWindows()   #关闭所有openCV窗口
+
+
+#-------------------------二值化---------------------------------
+image_gray = np.where(img_gray >= 128,1,0).astype(np.uint8)
+
+plt.imshow(image_gray, cmap='gray')
+plt.show()
+cv2.waitKey()
+
+#或者直接使用 openCV的二值化函数
+_,image = cv2.threshold(img_gray,128,255,cv2.THRESH_BINARY)
+cv2.imshow("窗口3",image)
+cv2.waitKey()
