@@ -1,0 +1,63 @@
+import cv2
+import numpy as np
+
+
+from matplotlib import pyplot as plt
+from skimage.color import rgb2gray
+
+# 灰度化：直接实现
+# 读取图片BGR  Gray = 0.3R + 0.59G + 0.11B
+img = cv2.imread("lenna.png")
+h, w = img.shape[:2]
+img_gray = np.zeros([h, w], img.dtype)  # 创建大小一样的全零矩阵
+for i in range(h):
+    for j in range(w):
+        m = img[i, j]
+        img_gray[i, j] = int(m[0] * 0.11 + m[1] * 0.59 + m[2] * 0.3)
+print("======灰度化：直接实现=========")
+print(f"顶点值为：{m}")
+print(f"灰度化后的矩阵：{img_gray}")
+print("print imgae show gray: %s" % img_gray)  # 方式二
+cv2.imshow("cv2 imgae show gray:", img_gray)
+
+# 打印图片
+print("======打印原始图片=========")
+plt.subplot(221)
+img = plt.imread("lenna.png")
+plt.imshow(img)
+print("---image lenna----")
+print(img)
+
+# 灰度化：函数实现
+print("======灰度化：函数实现=========")
+img_gray = rgb2gray(img)
+plt.subplot(222)
+plt.imshow(img_gray, cmap="gray")
+print("---image lenna----")
+print(img_gray)
+
+
+
+
+# 二值化：直接实现
+print("======二值化：直接实现=========")
+rows, cols = img_gray.shape
+for i in range(rows):
+    for j in range(cols):
+        if img_gray[i, j] / 255 <= 0.5:
+            img_gray[i, j] = 0
+        else:
+            img_gray[i, j] = 1
+
+print(f"二值化后的矩阵：{img_gray}")
+
+# 二值化：函数实现
+print("======二值化：函数实现========")
+img_binary = np.where(img_gray / 255 <= 0.5, 0, 1)
+print("---image_img_binary---")
+print(img_gray)
+print(img_gray.shape)
+
+plt.subplot(223)
+plt.imshow(img_binary, cmap="gray")
+plt.show()
