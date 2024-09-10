@@ -20,7 +20,7 @@ def bilinear_interpolation(filepath, dstH, dstW):
                 # 左上坐标横坐标，向下取整
                 #np.floor返回不大于输入参数的整数
                 srcx0 = int(np.floor(srcx))
-                #右上坐标，如果边界超出了，则取边界值
+                #右上坐标，如果边界超出了，则取边界值，比如srcx0+1超出了511，在512x512图像，最大值是512
                 srcx1 = min(srcx0+1,srcW-1)
                 #左下坐标
                 srcy0 = int(np.floor(srcy))
