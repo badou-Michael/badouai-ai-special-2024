@@ -40,7 +40,7 @@ def bilinear_interpolation(srcimg, dstH, dstW):
 if __name__ == '__main__':
     oriimg = cv_imread("../第二周/lenna.png")
     timestamp1= int(time.time())
-    targetimg = bilinear_interpolation(oriimg, 600,600)
+    targetimg = bilinear_interpolation(oriimg, 1024,1024)
     # timestamp2 = int(time.time())
 
     # 使用opencv默认方法
