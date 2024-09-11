@@ -1,0 +1,19 @@
+import cv2
+
+# 读取一个图像文件
+image = cv2.imread("example.jpg")
+
+# 将图像转换为灰度图像
+gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+cv2.imwrite("gray_example.jpg", gray_image)  # 保存灰度图像
+
+# 将灰度图像进行二值化
+threshold = 128  # 二值化的阈值
+_, binary_image = cv2.threshold(gray_image, threshold, 255, cv2.THRESH_BINARY)
+cv2.imwrite("binary_example.jpg", binary_image)  # 保存二值化图像
+
+# 显示结果
+cv2.imshow("Gray Image", gray_image)
+cv2.imshow("Binary Image", binary_image)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
