@@ -2,10 +2,10 @@ import numpy as np
 import cv2
 from histogram import cv_imread
 import time
+from numba import njit
 
-def bilinear_interpolation(filepath, dstH, dstW):
-    # 读取图片
-    srcimg = cv_imread(filepath)
+@njit
+def bilinear_interpolation(srcimg, dstH, dstW):
     # 获取原始图片高，框，与通道
     srcH,srcW,channel = srcimg.shape
     dstimg = np.zeros((dstH,dstW,channel),dtype=np.uint8)
@@ -40,11 +40,11 @@ def bilinear_interpolation(filepath, dstH, dstW):
 if __name__ == '__main__':
     oriimg = cv_imread("../第二周/lenna.png")
     timestamp1= int(time.time())
-    # dstimg = bilinear_interpolation("../第二周/lenna.png", 600,600)
+    targetimg = bilinear_interpolation(oriimg, 600,600)
     # timestamp2 = int(time.time())
 
     # 使用opencv默认方法
-    targetimg = cv2.resize(oriimg,(600,600),interpolation=cv2.INTER_LINEAR)
+    # targetimg = cv2.resize(oriimg,(600,600),interpolation=cv2.INTER_LINEAR)
 
     timestamp2 = int(time.time())
     print("用时", timestamp2 - timestamp1)
