@@ -1,1 +1,36 @@
 
+"""
+    bilinear interpolation
+    author: jiang hua
+    create date: 2024-09-10
+"""
+
+import cv2
+import numpy as np
+
+
+def bilinear_interpolation(img, scale):
+    sh,sw,ch = img.shape
+    dh,dw = scale
+    hscale = dh/sh
+    wscale = dw/sw
+    dimg = np.zeros([dh,dw,ch],img.dtype)
+    for c in range(ch):
+        for h in range(dh):
+            for w in range(dw):
+                scr_x = (w + 0.5) / wscale - 0.5
+                scr_y = (h + 0.5) / hscale - 0.5
+                x0 = int(scr_x)
+                x1 = min(x0 + 1,sw-1)
+                y0 = int(scr_y)
+                y1 = min(y0 + 1, sh-1)
+                tem1 = (x1-scr_x) * img[y0,x0,c] + (scr_x-x0) * img[y0,x1,c]
+                tem2 = (x1-scr_x) * img[y1,x0,c] + (scr_x-x0) * img[y1,x1,c]
+                dimg[h,w,c] =  int((y1-scr_y) * tem1 + (scr_y-y0) * tem2)
+    return dimg
+
+
+if __name__ == "__main__":
+    img = bilinear_interpolation(cv2.imread("lenna.png"),(800,800))
+    cv2.imshow("img",img)
+    cv2.waitKey(0)
