@@ -1,0 +1,102 @@
+import cv2
+import numpy as np
+
+
+def nearest_interpolation(old_image, new_width, new_height):
+    # 获取原图的尺寸，[:2]代表图像的高度、宽度
+    old_height, old_width = old_image.shape[:2]
+
+    # 创建一个新的空白图像，用于存放放大后的图片
+    new_image = np.zeros((new_height, new_width, 3), dtype=np.uint8)
+
+    # 计算缩放比例
+    x_ratio = old_width / new_width
+    y_ratio = old_height / new_height
+
+    # 遍历新图像的每个像素
+    for y in range(new_height):
+        for x in range(new_width):
+            # 计算对应的原图像素坐标
+            src_x = int(x * x_ratio)
+            src_y = int(y * y_ratio)
+
+            # 使用最临近插值方法填充新图像的像素
+            new_image[y, x] = old_image[src_y, src_x]
+
+    return new_image
+
+
+def bilinear_interpolation(img, new_width, new_height):
+    """
+    对图像进行双线性插值缩放
+    :param img: 原始图像，numpy数组
+    :param new_width, new_height: 新图像的形状
+    :return: 缩放后的图像，numpy数组
+    """
+    old_height, old_width = img.shape[:2]
+
+    # 计算缩放比例
+    scale_x = old_width / new_width
+    scale_y = old_height / new_height
+
+    # 创建一个新的空白图像
+    new_img = np.zeros((new_height, new_width, 3), dtype=np.uint8)
+
+    # 遍历新图像的每个像素
+    for y in range(new_height):
+        for x in range(new_width):
+            # 计算在原图中对应的坐标
+            src_x = x * scale_x
+            src_y = y * scale_y
+
+            # 找到原图中的四个邻近像素
+            x1 = int(src_x)
+            y1 = int(src_y)
+            x2 = min(x1 + 1, old_width - 1)
+            y2 = min(y1 + 1, old_height - 1)
+
+            # 计算插值权重
+            dx = src_x - x1
+            dy = src_y - y1
+
+            # 双线性插值计算新像素值
+            new_img[y, x] = (1 - dx) * (1 - dy) * img[y1, x1] + \
+                            dx * (1 - dy) * img[y1, x2] +\
+                            (1 - dx) * dy * img[y2, x1]+\
+                            dx * dy * img[y2, x2]
+
+    return new_img
+
+
+if __name__ == "__main__":
+    # 读取图片
+    image_path = 'lenna.png' 
+    old_image = cv2.imread(image_path)
+
+    # 设置放大倍数
+    scale_factor = 1.5
+
+    # 计算新的尺寸
+    new_width = int(old_image.shape[1] * scale_factor)
+    new_height = int(old_image.shape[0] * scale_factor)
+
+    # 使用自定义的最邻近插值方法放大图片
+    resized_image = nearest_interpolation(old_image, new_width, new_height)
+
+    # 显示原图和最邻近插值放大后的图像
+    cv2.imshow('Original Image', old_image)
+    cv2.imshow('Resized Image with Nearest Interpolation', resized_image)
+
+    # 使用双线性插值缩放图像
+    resized_img = bilinear_interpolation(old_image, new_width, new_height)
+
+    # 显示原图和双线性插值放大后的图像
+    cv2.imshow('Original Image', old_image)
+    cv2.imshow('Resized Image with Bilinear_Interpolation', resized_img)
+
+    # 等待按键，然后关闭窗口
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+
+
