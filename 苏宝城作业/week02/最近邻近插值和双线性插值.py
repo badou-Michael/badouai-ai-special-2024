@@ -23,8 +23,8 @@ for i in range(M):
     for j in range(M):
         x = i / scal_h
         y = j / scal_h
-        x0 = min(int(i / scal_h), H - 1)
-        y0 = min(int(j / scal_h), W - 1)
+        x0 = min(int((i + 0.5）/ scal_h - 0.5), H - 1)
+        y0 = min(int((j + 0.5）/ scal_h - 0.5), W - 1)
         x1 = min(x0 + 1, H - 1)
         y1 = min(y0 + 1, W - 1)
         temp1 = (x1 - x) * img[x0][y1] + (x - x0) * img[x1][y1]
