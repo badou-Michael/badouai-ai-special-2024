@@ -1,0 +1,75 @@
+import numpy as np
+import cv2
+from matplotlib import pyplot as plt
+
+#双线性插值实现图像放大
+def shuangxianxin(img, out_pic):
+    src_h, src_w, src_c = img.shape
+    dst_x, dst_y = out_pic[1], out_pic[0]
+    dstp_img = np.zeros((dst_x, dst_y, 3), np.uint8)
+    sh = float(src_h / dst_x)
+    sw = float(src_w / dst_y)
+    # 实现几何中心对称
+    for dst_h in range(dst_x):
+        for dst_w in range(dst_y):
+            src_x = (dst_h+0.5)*sh-0.5
+            src_y = (dst_w+0.5)*sw-0.5
+            #目标图在原图像映射点的四个邻近点+边界条件判断
+            src_x0 = int(np.floor(src_x))
+            src_x1 = min(src_x0+1,src_h-1)
+            src_y0 = int(np.floor(src_y))
+            src_y1 = min(src_y0+1,src_w-1)
+            # 两次x方向插值
+            dst_R1 = (src_x1-src_x)*img[src_x0, src_y0]+(src_x-src_x0)*img[src_x1, src_y0]
+            dst_R2 = (src_x1-src_x)*img[src_x0, src_y1]+(src_x-src_x0)*img[src_x1, src_y1]
+            # 一次y方向插值
+            dstp_img[dst_h,dst_w]=(src_y1-src_y)*dst_R1+(src_y-src_y0)*dst_R2
+    return  dstp_img
+if __name__  ==  "_main__":
+    img = cv2.imread("lenna.png")
+    dst = shuangxianxin(img, (900, 900))
+    cv2.imshow("shaungxianxintu:", dst)
+    cv2.waitKey(0)
+
+
+#临近值插值
+def near(pic):
+    pic = cv2.imread("lenna.png")
+    h, w, c = pic.shape
+    newpic = np.zeros((900, 900, c), np.uint8)
+    bl_h = 900/h
+    bl_w = 900/w
+    for i in range(900):
+        for j in range(900):
+            x = int(i/bl_h+0.5)
+            y = int(j/bl_w+0.5)
+            newpic[i, j] = pic[x, y]
+    return newpic
+
+pic = cv2.imread("lenna.png")
+near_count = near(pic)
+cv2.imshow("lingjinzhitu",near_count)
+cv2.waitKey(0)
+#接口   near_count = cv2.resize(pic,(900,900),interpolation=cv2.INTER_NEAREST)
+
+#直方图
+pic = cv2.imread("lenna.png")
+gray = cv2.cvtColor(pic, cv2.COLOR_BGR2GRAY)
+fanal = cv2.equalizeHist(gray)
+hist = cv2.calcHist([fanal], [0], None, [256], [0, 256])
+plt.figure()
+plt.hist(fanal.ravel(), 256)
+plt.show()
+cv2.imshow("zhifangtu", np.hstack([gray, fanal]))
+cv2.waitKey(0)
+
+
+#直方图均衡化
+pic = cv2.imread("lenna.png")
+(b, g, r) =cv2.split(pic)
+B = cv2.equalizeH(b)
+G = cv2.equalizeH(g)
+R = cv2.equalizeH(r)
+dst = cv2.merge((B, G, R))
+cv2.imshow("this is result", dst)
+cv2.waitkey(0)
