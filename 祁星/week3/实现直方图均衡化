@@ -53,3 +53,4 @@ axs[1, 1].set_title('均衡化后灰度图')
 
 plt.show()
 cv2.waitKey(0)
+ 
