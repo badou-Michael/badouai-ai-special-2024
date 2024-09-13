@@ -1,1 +1,30 @@
+# 通过cv2.resize 实现最临近插值和双线性插值
+#最临近插值
+Dimg=cv2.resize(img,(800,800),interpolation=cv2.INTER_NEAREST)
+#双线性插值
+Dimg=cv2.resize(img,(800,800),interpolation=cv2.INTER_LINEAR)
 
+# //自己写函数实现最临近插值 
+import cv2
+import numpy as np
+def  M_Nearest(img):
+     h,w,c=img.shape
+     dimg=np.zeros((800,800,c),np.uint8)
+     x_bl=800/h
+     y_bl=800/w
+     for i in range(800):
+         for j in range(800):
+             x=int(i/x_bl+0.5)
+             y=int(j/y_bl+0.5)
+             dimg[i,j]=img[x,y]
+     return dimg
+if __name__=='__main__':
+    
+    img=cv2.imread("lenna.png")
+    dimg=M_Nearest(img)
+    print(img)
+    print(dimg)
+    print(dimg.shape)
+    cv2.imshow("sr",img)
+    cv2.imshow("d",dimg)
+    cv2.waitKey(0)
