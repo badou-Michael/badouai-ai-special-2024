@@ -64,3 +64,4 @@ if __name__=='__main__':
     dst=My_Linearest(img,(800,800))
     cv2.imshow('lt',dst)
     cv2.waitKey(0)
+ 
