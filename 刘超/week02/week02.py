@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from PIL import Image
 import cv2
 
-img = cv2.imread('./lenna.png')
+img = cv2.imread('lenna.png')
 h, w = img.shape[:2]
 img_gray = np.zeros([h,w], img.dtype)
 for i in range(h):
