@@ -1,0 +1,56 @@
+import cv2
+from skimage.color import rgb2gray
+import numpy as np
+import matplotlib.pyplot as plt
+
+
+# 读取图像
+img = cv2.imread("lenna.png")
+high, wide = img.shape[:2]
+img_gary = np.zeros([high, wide], img.dtype)  # np.zeros创建一个给定形状和数据类型的新数组
+
+# # 灰度化 法一
+for i in range(high):
+    for j in range(wide):
+        m = img[i, j]
+        img_gary[i, j] = int(m[0] * 0.11 + m[1] * 0.59 + m[2] * 0.3)  # 浮点算法
+
+# 打印最后一个像素的值
+print('图像坐标', m)
+
+# 显示灰度图像和原始图像
+plt.subplot(221)
+plt.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+plt.title('Original Image')
+
+plt.subplot(222)
+plt.imshow(img_gary, cmap='gray')
+plt.title('Gray Image')
+
+# 灰度化 法二
+img_gary = rgb2gray(img)
+# img_gary = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+plt.subplot(223)
+plt.imshow(img_gary, cmap='gray')
+print("---image gray----")
+print("灰度化之后", img_gary)
+
+
+# 二值化
+rows, cols = img_gary.shape
+for i in range(rows):
+    for j in range(cols):
+        if (img_gary[i, j] <= 0.5):
+            img_gary[i, j] = 0
+        else:
+            img_gary[i, j] = 1
+
+img_binary = np.where(img_gary >= 0.5, 1, 0)
+print("-----imge_binary------")
+print(img_binary)
+print(img_binary.shape)
+
+plt.subplot(224)
+plt.imshow(img_binary, cmap='gray')
+# 显示图像
+plt.show()

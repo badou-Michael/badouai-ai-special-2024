@@ -1,0 +1,33 @@
+import cv2
+import numpy as np
+
+#加载图像
+img = cv2.imread("lenna.png")  #返回NumPy数组
+height, width = img.shape[:2]  #获取图像的高度和宽度  
+
+#将图像转换为灰度图像
+gray_image = np.zeros([height, width],img.dtype)  #创建一个和当前图片大小一样的全零数组                   
+for i in range(height):
+    for j in range(width):  #遍历
+        m = img[i,j]   #BGR坐标                            
+        gray_image[i,j] = int(m[0]*0.11 + m[1]*0.59 + m[2]*0.3)  #将BGR坐标转化为gray坐标并赋值给新图像
+
+#应用二值化
+binary_image = np.zeros((height, width), img.dtype)  #创建一个和当前图片大小一样的全零数组 
+for i in range(height):
+    for j in range(width):  #遍历
+        m = gray_image[i,j]   #灰度图坐标
+        binary_image[i,j] = m/255  #转化为[0,1]浮点数
+        if (binary_image[i, j] <= 0.5):  #阈值为0.5
+            binary_image[i, j] = 0
+        else:
+            binary_image[i, j] = 1
+
+#将binary_image转换回uint8类型，以便显示
+binary_image = (binary_image * 255).astype(np.uint8)
+
+#显示灰度图像和二值图像
+cv2.imshow('Gray Image', gray_image)
+cv2.imshow('Binary Image', binary_image)
+cv2.waitKey(0)  #等待用户按键
+cv2.destroyAllWindows()  #关闭所有OpenCV创建的窗口
