@@ -1,0 +1,38 @@
+import cv2
+import matplotlib.pyplot as plt
+import numpy as np
+
+# Load the image
+img = cv2.imread('../imgs/Lenna.png')
+img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+# Calculate the histogram of the image
+hist = cv2.calcHist([img], [0], None, [256], [0, 256])
+plt.figure()
+plt.title('Histogram of the image')
+plt.xlabel('Bins')
+plt.ylabel('# of Pixels')
+plt.plot(hist)
+plt.xlim([0, 256])
+# plt.imshow(hist, map='gray')
+plt.show()
+
+dst = cv2.equalizeHist(img)
+dst_hist = cv2.calcHist([dst], [0], None, [256], [0, 256])
+plt.figure()
+plt.hist(dst.ravel(), 256, [0, 256])
+plt.show()
+
+cv2.imshow('Histogram Equalization', np.hstack([img, dst]))
+cv2.waitKey(0)
+
+# colorful image histogram
+img0 = cv2.imread('../imgs/Lenna.png')
+b, g, r = cv2.split(img0)
+bH = cv2.equalizeHist(b)
+gH = cv2.equalizeHist(g)
+rH = cv2.equalizeHist(r)
+
+res = cv2.merge((bH, gH, rH))
+cv2.imshow('Colorful Image', np.hstack([img0, res]))
+cv2.waitKey(0)
+cv2.destroyAllWindows()
