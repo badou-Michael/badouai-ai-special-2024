@@ -4,7 +4,7 @@ import numpy as np
 img = cv2.imread("lenna.png")  #读取图像数据
 print(img)
 h,w = img.shape[:2]  #.shape cv2带的函数 会返回元组包含三个值，高宽通道数，只取前两个高宽
-#print(h,w)
+#print(h,w)image_gray.py
 img_gray = np.zeros([h,w],img.dtype)
 for i in range(h):
     for j in range(w):
