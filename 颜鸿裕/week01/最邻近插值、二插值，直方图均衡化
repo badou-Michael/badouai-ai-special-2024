@@ -1,0 +1,80 @@
+#最邻近插值
+import cv2
+import numpy as np
+
+zoom_h = 800
+zoom_w = 800 #图像放大为800*800像素，3通道
+zoom = np.zeros([zoom_h,zoom_w,3],np.uint8)
+
+img = cv2.imread("../lenna.png") #读取存放于上一级目录的图片
+h,w = img.shape[:2]
+sh = 800/h
+sw = 800/w
+
+for i in range(zoom_h):
+    for j in range(zoom_w):
+        x = int(i/sh+0.5)
+        y = int(j/sw+0.5)
+        zoom[i,j] = img[x,y]
+
+cv2.imshow("nearest interp",zoom)
+cv2.imshow("image",img)
+cv2.waitKey(0)
+
+
+#二插值
+import cv2
+import numpy as np
+
+
+img = cv2.imread('../lenna.png')
+src_h, src_w, channel = img.shape
+dst_h, dst_w = 800, 800
+print("src_h, src_w = ", src_h, src_w)
+print("dst_h, dst_w = ", dst_h, dst_w)
+
+dst_img = np.zeros((dst_h, dst_w, 3), dtype=np.uint8)
+scale_x, scale_y = float(src_w) / dst_w, float(src_h) / dst_h
+for i in range(channel):
+    for dst_y in range(dst_h):
+        for dst_x in range(dst_w):
+
+            src_x = (dst_x + 0.5) * scale_x - 0.5
+            src_y = (dst_y + 0.5) * scale_y - 0.5
+
+            src_x0 = int(src_x)
+            src_x1 = min(src_x0 + 1, src_w - 1)
+            src_y0 = int(src_y)
+            src_y1 = min(src_y0 + 1, src_h - 1)
+
+            temp0 = (src_x1 - src_x) * img[src_y0, src_x0, i] + (src_x - src_x0) * img[src_y0, src_x1, i]
+            temp1 = (src_x1 - src_x) * img[src_y1, src_x0, i] + (src_x - src_x0) * img[src_y1, src_x1, i]
+            dst_img[dst_y, dst_x, i] = int((src_y1 - src_y) * temp0 + (src_y - src_y0) * temp1)
+
+
+cv2.imshow('bilinear interp',dst_img)
+cv2.waitKey()
+
+
+#直方图均衡化
+import cv2
+import numpy as np
+from matplotlib import pyplot as plt
+
+img = cv2.imread("../lenna.png")
+gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+h,w = gray.shape
+gray_equal = np.zeros([h,w],gray.dtype)
+gray1 = np.array(gray)
+p,count = np.unique(gray1,return_counts=True)
+for i in range(h):
+    for j in range(w):
+        m = list(p).index(gray1[i,j])
+        gray_equal[i,j] = round((sum(count[:m+1])/(h*w)*256)-1)
+
+
+plt.figure()
+plt.hist(gray1.ravel(),256)
+plt.figure()
+plt.hist(gray_equal.ravel(),256)
+plt.show()

@@ -1,0 +1,67 @@
+# 通过cv2.resize 实现最临近插值和双线性插值
+#最临近插值
+Dimg=cv2.resize(img,(800,800),interpolation=cv2.INTER_NEAREST)
+#双线性插值
+Dimg=cv2.resize(img,(800,800),interpolation=cv2.INTER_LINEAR)
+
+# //自己写函数实现最临近插值 
+import cv2
+import numpy as np
+def  M_Nearest(img):
+     h,w,c=img.shape
+     dimg=np.zeros((800,800,c),np.uint8)
+     x_bl=800/h
+     y_bl=800/w
+     for i in range(800):
+         for j in range(800):
+             x=int(i/x_bl+0.5)
+             y=int(j/y_bl+0.5)
+             dimg[i,j]=img[x,y]
+     return dimg
+if __name__=='__main__':
+    
+    img=cv2.imread("lenna.png")
+    dimg=M_Nearest(img)
+    print(img)
+    print(dimg)
+    print(dimg.shape)
+    cv2.imshow("sr",img)
+    cv2.imshow("d",dimg)
+    cv2.waitKey(0)
+# 自己写双线性插值
+import cv2
+import numpy as np
+
+def My_Linearest(img,ou_dimg):
+    s_h,s_w,s_c=img.shape
+    d_h,d_w=ou_dimg[1],ou_dimg[0]
+    print ("src_h, src_w = ", s_h, s_w)
+    print ("dst_h, dst_w = ", d_h, d_w)
+    if s_h==d_h and s_w==d_w:
+        return img.copy()
+    dst_img = np.zeros((d_h,d_w,s_c),dtype=np.uint8)
+    sc_x,sc_y = float(s_w)/d_w,float(s_h)/d_h
+    for i in range(s_c):
+        for d_y in range(d_h):
+            for d_x in range(d_w):
+                # 中心对齐
+                s_x =(d_x+0.5)*sc_x-0.5
+                s_y=(d_y+0.5)*sc_y-0.5  
+                
+                s_x0=int(np.floor(s_x))
+                s_x1=min(s_x0+1,s_w-1)
+                
+                s_y0=int(np.floor(s_y))
+                s_y1=min(s_y0+1,s_h-1)
+                
+                temp0=(s_x1-s_x)*img[s_y0,s_x0,i]+(s_x-s_x0)*img[s_y0,s_x1,i]
+                temp1=(s_x1-s_x)*img[s_y1,s_x0,i]+(s_x-s_x0)*img[s_y1,s_x1,i]
+                dimg[d_y,d_x,i]=int((s_y1-s_y)*temp0+(s_y-s_y0)*temp1)
+    return dimg
+
+if __name__=='__main__':
+    img = cv2.imread('lenna.png')
+    dst=My_Linearest(img,(800,800))
+    cv2.imshow('lt',dst)
+    cv2.waitKey(0)
+ 
