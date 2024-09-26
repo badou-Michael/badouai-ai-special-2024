@@ -1,0 +1,47 @@
+#!/usr/bin/env python
+__coding__ = "utf-8"
+__author__ = "张宇航"
+
+"""
+-------------------------------------------------
+   Description :	TODO：实现双线性插值
+   SourceFile  :	LinearInter
+   Author      :	zhangyuhang
+   Date	       :	2024-09-12
+-------------------------------------------------
+"""
+import cv2
+import numpy as np
+def linearInters(img,out_size):
+    sc_h , sc_w, channel = img.shape
+    dst_h, dst_w, = out_size[1], out_size[0]
+    if sc_h == dst_h and sc_w == dst_w:
+        return img.copy()
+    dst_img = np.zeros((dst_h,dst_w,3),dtype=np.uint8)
+    scale_y, scale_x = float(sc_h)/dst_h, float(sc_w)/dst_w
+    for k in range(channel):
+        for i in range(dst_h):
+            for j in range(dst_w):
+                # 中心对齐
+                sc_y = (i+0.5)*scale_y-0.5
+                sc_x = (j+0.5)*scale_x-0.5
+
+                # 边界值处理,找到双线性插值的点
+                sc_x0 = int(np.floor(sc_x))
+                sc_x1 = min(sc_x0+1,sc_w-1)
+                sc_y0 = int(np.floor(sc_y))
+                sc_y1 = min(sc_y0+1,sc_h-1)
+
+                # 带入插值公式
+                #x方向做插值 x1-x0 =1 分母不用算
+                tmp0 = (sc_x1 - sc_x) * img[sc_y0, sc_x0, k] + (sc_x - sc_x0) * img[sc_y0, sc_x1, k]
+                tmp1 = (sc_x1 - sc_x) * img[sc_y1, sc_x0, k] + (sc_x - sc_x0) * img[sc_y1, sc_x1, k]
+                dst_img[i,j,k] = int((sc_y1-sc_y)*tmp0 + (sc_y-sc_y0)*tmp1)
+
+    return dst_img
+
+if __name__ == '__main__':
+    img = cv2.imread('lenna.png')
+    dist = linearInters(img,(800,800))
+    cv2.imshow('linear',dist)
+    cv2.waitKey(0)
