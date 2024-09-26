@@ -24,5 +24,5 @@ eigen_value,eigen_vector = np.linalg.eig(cov_matrix)
 sort = np.argsort(-1*eigen_value)
 print(sort)
 reduce_eigen_vector = eigen_vector[:,sort[:K]]
-pca_matrix = np.dot(X,reduce_eigen_vector)
+pca_matrix = np.dot(xmean,reduce_eigen_vector)
 print("降维后的矩阵\n",pca_matrix)
