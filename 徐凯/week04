@@ -1,0 +1,54 @@
+# 高斯噪声&椒盐噪声
+# 20240925 徐凯
+
+
+import numpy as np
+import cv2
+import random
+from skimage import util
+
+
+def GaussianNoise(src, mean, sigma, percetage):
+    NoiseImg = src
+    NoiseNum = int(percetage*src.shape[0]*src.shape[1])
+    for i in range(NoiseNum):
+        randX = random.randint(0, src.shape[0]-1)
+        randY = random.randint(0, src.shape[1]-1)
+
+        NoiseImg[randX, randY] = NoiseImg[randX, randY]+random.gauss(mean, sigma)
+
+        if NoiseImg[randX, randY] < 0:
+            NoiseImg[randX, randY] = 0
+        elif NoiseImg[randX, randY] > 255:
+            NoiseImg[randX, randY] = 255
+    return NoiseImg
+
+
+img_src = cv2.imread('lenna.png', 0)
+# img_dst = util.random_noise(img_src, mode='gaussian')
+img_dst = GaussianNoise(img_src, 2, 8, 0.8)
+img_src = cv2.imread('lenna.png', 0)
+cv2.imshow('img_src', img_src)
+cv2.imshow('img_dst', img_dst)
+cv2.waitKey(0)
+
+
+
+def fun(src1, percetage):
+    img1 = src1
+    img_noise = int(percetage*img1.shape[0]*img1.shape[1])
+    for i in range(img_noise):
+        rand_x = random.randint(0, img1.shape[0]-1)
+        rand_y = random.randint(0, img1.shape[1]-1)
+
+        if img1[rand_x, rand_y] >111:
+            img1[rand_x, rand_y] = 255
+        else:img1[rand_x, rand_y] = 0
+    return img1
+
+
+img_src2 = cv2.imread('lenna.png', 0)
+img_dst2 = util.random_noise(img_src2, mode='s&p')
+# img_dst2 = fun(img_src2, 0.5)
+cv2.imshow('dst', img_dst2)
+cv2.waitKey(0)
