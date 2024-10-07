@@ -1,0 +1,90 @@
+#彩色图像的灰度化代码
+from skimage.color import rgb2gray
+import numpy as np
+import matplotlib.pyplot as plt
+from PIL import Image
+import cv2
+
+# #灰度化
+# img = cv2.imread('lenna.png')
+# h,w= img.shape[:2]     #获取图像的宽高
+# gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)  #灰度化
+# cv2.imshow('gray',gray)
+# cv2.waitKey(0)
+# cv2.destroyAllWindows()
+# plt.imshow(gray,cmap='gray')
+# plt.show()  #显示图像
+# print(gray) #输出图像
+# print(gray.shape)   #输出图像的宽高和数据类型
+# print(gray.dtype)  #输出图像的数据类型
+# print(gray.max()) #输出图像的最大值
+# print(gray.min())  #输出图像的最小值
+# print(gray.mean()) #输出图像的平均值
+# print(gray.std()) #输出图像的方差
+# print(gray.var()) #输出图像的方差
+# print(gray.sum()) #输出图像的总和
+
+
+#实现图片灰度化
+img =cv2.imread("lenna.png")
+h,w= img.shape[:2]     #获取图像的宽高
+img_gray = np.zeros([h,w],img.dtype)   #创建一个全零的图像，大小和原图一样
+for i in range(h):      #遍历每一行
+    for j in range(w):  #遍历每一个像素点
+        m = img[i,j]    #获取原图的RGB值
+        img_gray[i,j] = int(m[0]*0.11+m[1]*0.59+m[2]*0.3)  #将RGB值转化为灰度值
+        cv2.imshow("gray",img_gray)
+print(m)                  #输出原图的RGB值
+print(img_gray)           #输出灰度图像
+print("image show gray: %s"%img_gray)     #输出图像
+cv2.imshow("image show gray",img_gray)
+
+
+plt.subplot(221)   #创建子图
+img=cv2.imread('lenna.png')   #读取图片
+plt.imshow(img)    #显示图片
+print(img)
+
+#灰度化
+img_gray=rgb2gray(img)   #颜色空间转换
+plt.subplot(222)         #创建子图
+plt.imshow(img_gray,cmap='gray')   #显示图片
+print(img_gray)
+# img_gray=cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)   #颜色空间转换
+# plt.subplot(223)    #创建子图
+# plt.imshow(img_gray,cmap='gray')   #显示图片
+# plt.show()   #显示图像
+print("image show gray: %s"%img_gray)
+
+#二值化
+# img_gray=cv2.imread('lenna.png',0)   #读取图片
+# ret,img_binary=cv2.threshold(img_gray,127,255,cv2.THRESH_BINARY)   #二值化
+# plt.subplot(223)   #创建子图
+# plt.imshow(img_binary,cmap='gray')   #显示图片
+# plt.show()  #显示图像
+# print(img_binary)  #输出二值化图像
+# print("image show binary: %s"%img_binary) #输出二值化图像
+# print(ret)  #输出二值化图像
+# print("threshold: %s"%ret) #输出阈值
+# print("image show binary: %s"%img_binary) #输出二值化图像
+
+#二值化
+rows,cols=img_gray.shape
+for i in range(rows):
+    for j in range(cols):
+        if(img_gray[i,j]<=0.5):
+            img_gray[i,j]=0
+        else:
+            img_gray[i,j]=1
+print(img_gray)
+plt.subplot(223)
+plt.imshow(img_gray,cmap='gray')
+plt.show()
+
+
+cv2.waitKey(0)   #等待键盘输入
+cv2.destroyAllWindows()  #销毁所有窗口
+print(img_gray)   #输出灰度图像
+
+
+
