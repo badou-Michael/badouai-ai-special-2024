@@ -1,0 +1,30 @@
+"""
+    implement Gaussian noise
+    author: jiang hua
+    create date: 2024-09-26
+"""
+import cv2
+import numpy as np
+
+
+def add_gaussian_noise(img, scale):
+    # 计算要添加告诉噪声的像素数
+    h, w = img.shape[:2]
+    pix_num = int(h * w * scale)
+    # 生成高斯数据
+    gaussian_val = np.random.normal(0, 5, pix_num)
+    out_img = np.array(img, img.dtype)
+    for val in gaussian_val:
+        ran_h = np.random.randint(0, h)
+        ran_w = np.random.randint(0, w)
+        out_img[ran_h, ran_w] = np.clip((out_img[ran_h, ran_w] + val).astype(np.uint8), 0, 255)
+    return out_img
+
+
+if __name__ == "__main__":
+    img = cv2.imread("lenna.png")
+    cv2.imshow("img", img)
+    gaussian_img = add_gaussian_noise(img, 0.8)
+    cv2.imshow("gaussian_img", gaussian_img)
+    cv2.waitKey(0)
+
