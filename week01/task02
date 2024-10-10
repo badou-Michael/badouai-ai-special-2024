@@ -1,0 +1,22 @@
+import cv2
+import matplotlib.pyplot as plt
+import numpy as np
+from skimage.color import rgb2gray
+
+path = "../image/lenna.png"
+
+img = cv2.imread(path)
+# 灰度化
+img_gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+# img_gray = rgb2gray(img)
+plt.subplot(121)
+plt.imshow(img_gray,cmap='gray')
+
+# 二值化
+img_gray = rgb2gray(img) #  用 cv2.cvtColor 方法时 为什么要重新读取一遍才能正确输出
+img_binary = np.where(img_gray < 0.5,0,1)
+plt.subplot(122)
+
+plt.imshow(img_binary,cmap='gray')
+
+plt.show()
