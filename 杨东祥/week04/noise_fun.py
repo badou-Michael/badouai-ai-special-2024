@@ -70,7 +70,7 @@ def random_noise(image, mode='gaussian', seed=None, clip=True, **kwargs):
     return noisy_image
 
 
-img = cv2.imread("sea.jpg")
+img = cv2.imread("../sea.jpg")
 resized_noisy_image0 = cv2.resize(img, (1599, 877))  # 指定新的宽度和高度
 noise_gs_img = util.random_noise(img, mode='s&p')
 resized_noisy_image1 = cv2.resize(noise_gs_img, (1599, 877))  # 指定新的宽度和高度
