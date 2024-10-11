@@ -8,7 +8,7 @@ def pca_manual_1(X, K):
     # 1. 样本矩阵中心化
     mean = np.array([np.mean(attr) for attr in X.T])
     centrX = X - mean
-    print(centrX)
+    # print(centrX)
 
     # 2. 样本矩阵的协方差矩阵
     ns = np.shape(centrX)[0]
@@ -16,17 +16,17 @@ def pca_manual_1(X, K):
 
     # 3. 协方差矩阵的特征值和特征向量
     a, b = np.linalg.eig(C)
-    print(a, b)
+    # print(a, b)
 
     # 4. 降序排列特征值和特征向量
     ind = np.argsort(-1*a)
-    print(ind)
+    # print(ind)
     UT = [b[:, ind[i]] for i in range(K)]
     U = np.transpose(UT)
     # print(U)
 
     # 5. 降维矩阵Z
-    Z = np.dot(X, U)
+    Z = np.dot(centrX, U)
 
     return Z
 
@@ -42,21 +42,14 @@ def pca_manual_2(X, n_components):
     
     # 3. 协方差矩阵的特征值和特征向量
     eig_vals, eig_vectors = np.linalg.eig(covariance)
-    print("1")
-    print(eig_vals, eig_vectors)
 
     # 4. 获得降维矩阵
     idx = np.argsort(-eig_vals)
-    print("2")
-    print(idx)
 
     components_ = eig_vectors[:, idx[:n_components]]
 
-    print("3")
-    print(components_)
-
     # 5. 对X进行降维
-    return np.dot(X, components_)
+    return np.dot(centrX, components_)
 
 
 def pca_manual_3(X, n_components):
@@ -84,7 +77,7 @@ def pca_manual_3(X, n_components):
 def pca_interface_1(X, n_components):
     
     pca = PCA(n_components=n_components)
-    X_pca = pca.fit_transform(X_scaled)
+    X_pca = pca.fit_transform(X)
 
     return X_pca
 
@@ -106,7 +99,7 @@ if __name__ == "__main__":
     # X = data.data
 
     X_pca = pca_manual_1(X, K=2)
-    print(X_pca), print()
+    print(X_pca), print()  # 四个结果符号会相反是因为求解特征值特征向量时用了不同符号而已
 
     X_pca = pca_manual_2(X, n_components=2)
     print(X_pca), print()
