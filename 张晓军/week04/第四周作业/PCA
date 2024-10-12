@@ -1,0 +1,35 @@
+import numpy as np
+from sklearn.preprocessing import StandardScaler
+
+
+def pca_manual(X, n_components):
+    # 标准化数据
+    scaler = StandardScaler()
+    X_standardized = scaler.fit_transform(X)
+
+    # 计算协方差矩阵
+    cov_matrix = np.cov(X_standardized.T)
+
+    # 计算特征值和特征向量
+    eigenvalues, eigenvectors = np.linalg.eig(cov_matrix)
+
+    # 排序特征值
+    sorted_index = np.argsort(eigenvalues)[::-1]
+    sorted_eigenvectors = eigenvectors[:, sorted_index]
+
+    # 选择前n个主成分
+    principal_components = sorted_eigenvectors[:, :n_components]
+
+    # 投影数据到主成分
+    X_reduced = np.dot(X_standardized, principal_components)
+
+    return X_reduced
+
+
+# 示例数据
+X = np.array([[2.5, 2.4], [0.5, 0.7], [2.2, 2.9], [1.9, 2.2], [3.1, 3.0], [2.3, 2.7], [2, 1.6], [1, 1.1], [1.5, 1.6],
+              [1.1, 0.9]])
+
+# 执行PCA
+X_reduced = pca_manual(X, 2)
+print("降维后的数据：\n", X_reduced)

@@ -1,0 +1,45 @@
+import numpy as np
+import random
+import matplotlib.pyplot as plt
+
+def add_salt_and_pepper_noise(image, salt_prob=0.05, pepper_prob=0.05):
+  """
+  给图像添加椒盐噪声
+
+  参数：
+  image (numpy.ndarray):输入图像，通常是二维或三维数组。
+  salt_prob(float):盐噪声（白色像素）出现的概率，默认为0.05。
+  pepper_prob(float):胡椒噪声（黑色像素）出现的概率，默认为0.05.
+
+  返回
+  numpy.ndarray:添加噪声后的图像
+  """
+  noisy_image = np.copy(image)
+  height, width = noisy_image.shape[:2]
+  num_salt = np.ceil(salt_prob * image.size)
+  num_pepper = np.ceil(pepper_prob * image.size)
+
+#添加盐噪声
+  coords_salt = [np.random.randint(0,i - 1,int(num_salt)) for i in image.shape]
+  noisy_image[tuple(coords_salt)] = 255
+
+#添加胡椒噪声
+  coords_pepper = [np.random.randint(0, i -1, int(num_pepper)) for i in image.shape]
+  noisy_image[tuple(coords_pepper)] = 0
+
+  return noisy_image
+
+#示例图像，创建一个简单的灰度图像
+image = np.zeros((100,100), dtype=np.uint8)
+image[30:70, 30:70] = 128
+
+#添加椒盐噪声
+noisy_image = add_salt_and_pepper_noise(image)
+
+#显示原始图像和添加噪声后的图像
+fig, axes = plt.subplots(1,2)
+axes[0].imshow(image, cmap='gray')
+axes[0].set_title('Original Image')
+axes[1].imshow(noisy_image, cmap='gray')
+axes[1].set_title('Noisy Image')
+plt.show()
