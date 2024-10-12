@@ -1,0 +1,47 @@
+import cv2
+import matplotlib.pyplot as plt
+import numpy as np
+from skimage.color import rgb2gray
+
+path = "../image/lenna.png"
+
+img = cv2.imread(path)
+
+# 灰度化
+def show_gray(image):
+    width,height = image.shape[:2]
+    gray = np.zeros((width,height),image.dtype)
+    for x in range(width):
+        for y in range(height):
+            bgr = img[x,y]
+            col = bgr[0] * 0.11 + bgr[1] * 0.59  + bgr[2]*0.3 #BGR
+            gray[x,y] = col
+    cv2.imshow("gray",gray)
+    return gray
+
+# 二值化
+def show_binary(gray,num):
+    width, height = gray.shape[:2]
+    binary = np.zeros((width, height))
+    for x in range(width):
+        for y in range(height):
+            if gray[x,y] > num:
+                binary[x,y] = 1
+            else:
+                binary[x,y] = 0
+    cv2.imshow("binary",binary)
+
+
+# 灰度化
+img_gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY) # dtype uint
+# img_gray = rgb2gray(img)   # dtype float64
+# plt.subplot(121)
+# plt.imshow(img_gray,cmap='gray')
+gray =  show_gray(img)
+
+# 二值化
+# img_binary = np.where(img_gray < 128,0,1)
+# img_binary = np.where(img_gray < 0.5,0,1) #rgb2gray
+show_binary(gray,128)
+
+cv2.waitKey(0)
