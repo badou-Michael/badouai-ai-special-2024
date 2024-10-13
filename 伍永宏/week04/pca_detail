@@ -1,0 +1,66 @@
+import numpy as np
+from sklearn.decomposition import PCA
+
+class Pca_detail():
+    def __init__(self,src,k):
+        self._src = src
+        self._k = k
+        self._centerM = self._getCenterMatrix()
+        self._covM = self._getCovMatrix()
+        self._projectionM = self._getProjectionMatrix()
+        self._result = self._getResult()
+
+
+    # 均值化
+    def _getCenterMatrix(self):
+        '对列值算均值'
+        mean = np.mean(self._src, axis=0)
+        matrix = self._src - mean
+        return matrix
+
+    # 协方差矩阵
+    def _getCovMatrix(self):
+        m = self._src.shape[0]
+        return np.dot(self._centerM.T,self._centerM)/m
+
+    # 特征值投影矩阵
+    def _getProjectionMatrix(self):
+        '特征值,特征向量'
+        eig_v,eig_ma = np.linalg.eig(self._covM)
+        index = np.argsort(eig_v)[::-1]
+        print("index = ",index)
+        '主成分'
+        matrix = [eig_ma[:,index[i]] for i in range(self._k)]
+        print("主成分：", matrix)
+        '投影矩阵'
+        return np.transpose(matrix)
+
+    def _getResult(self):
+        res = np.dot(self._src,self._projectionM)
+        print("降维后 shape",res.shape)
+        print(res)
+        return  res
+
+
+if __name__ == '__main__':
+    '10样本3特征的样本集, 行为样例，列为特征维度'
+    x = np.array([[10, 15, 29],
+                  [15, 46, 13],
+                  [23, 21, 30],
+                  [11, 9, 35],
+                  [42, 45, 11],
+                  [9, 48, 5],
+                  [11, 21, 14],
+                  [8, 5, 15],
+                  [11, 12, 21],
+                  [21, 20, 25]])
+    '降维'
+    k = x.shape[1] - 1
+    Pca_detail(x,k)
+
+    '调用接口'
+    pca = PCA(n_components = 2)
+    pca.fit(x)
+    newX = pca.fit_transform(x)
+    print('接口调用 维度',newX.shape)
+    print(newX)
