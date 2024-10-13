@@ -25,13 +25,13 @@ def JiaoYanNoise(src,  percetage):
   img = src
   noise_num = int(percetage * src.shape[0] * src.shape[1])
   for i in range(NoiseNum): 
-	  randX=random.randint(0,src.shape[0]-1)       
-	  randY=random.randint(0,src.shape[1]-1) 
+	randX=random.randint(0,src.shape[0]-1)       
+	randY=random.randint(0,src.shape[1]-1) 
 	 
-	  if random.random()<=0.5:           
-	    img[randX,randY]=0       
-	  else:            
-	    img[randX,randY]=255    
+	if random.random()<=0.5:           
+		img[randX,randY]=0       
+	else:            
+		img[randX,randY]=255    
     return img
 
 #调用函数实现噪声：
