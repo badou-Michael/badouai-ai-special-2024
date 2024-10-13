@@ -1,0 +1,72 @@
+'实现高斯噪声，椒盐噪声'
+import random
+import cv2
+from skimage import util
+
+'高斯噪声'
+def add_gauss_noise(img, mean, sigma, percentage):
+    width, height = img.shape[:2]
+    noise_image = img
+    noise_num = int(percentage * width * height)
+    is_signal = len(img.shape) <= 2
+    for _ in range(noise_num):
+        x = random.randint(0, width - 1)
+        y = random.randint(0, height - 1)
+        if is_signal:
+            noise_image[x, y] += random.gauss(mean, sigma)
+            if noise_image[x, y] > 255:
+                noise_image[x, y] = 0
+            elif noise_image[x, y] < 0:
+                noise_image[x, y] = 0
+        else:
+            '多通道的图'
+            val = noise_image[x,y] + random.gauss(mean, sigma)
+            val = [min(max(0,x),255) for x in val]
+            # val = [min(max(0, x + random.gauss(mean, sigma)), 255) for x in noise_image[x, y]]
+            # print(val)
+            noise_image[x, y] = val
+    return noise_image
+
+
+'椒盐噪声'
+def add_papper_sault_noise(img, percentage):
+    width, height = img.shape[:2]
+    noise_image = img
+    noise_num = int(percentage * width * height)
+    is_signal = len(img.shape) <= 2
+    for _ in range(noise_num):
+        x = random.randint(0, width - 1)
+        y = random.randint(0, height - 1)
+        if random.random() < 0.5:
+            if is_signal:
+                noise_image[x, y] = 0
+            else:
+                noise_image[x, y] = [0, 0, 0]
+        else:
+            if is_signal:
+                noise_image[x, y] = 255
+            else:
+                noise_image[x, y] = [255, 255, 255]
+    return noise_image
+
+
+if __name__ == "__main__":
+    path = "../../image/lenna.png"
+    image = cv2.imread(path)
+    gray = cv2.imread(path, 0)
+
+    gauss_noise = add_gauss_noise(gray, 4, 5, 0.5)
+    cv2.imshow("gauss", gauss_noise)
+
+    papper_noise = add_papper_sault_noise(image, 0.5)
+    cv2.imshow("papper", papper_noise)
+
+    '调用高斯噪声接口'
+    cv2.imshow("build-in gauss",util.random_noise(image,mean=0,var=5))
+
+    '调用泊松噪声接口'
+    cv2.imshow("build-in poisson",util.random_noise(image,mode="poisson"))
+
+    '调用椒盐噪声'
+    cv2.imshow("build-in s&p",util.random_noise(gray,mode="s&p",amount=0.5))
+    cv2.waitKey(0)
