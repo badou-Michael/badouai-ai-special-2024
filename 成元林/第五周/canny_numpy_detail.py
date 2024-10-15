@@ -126,7 +126,7 @@ def doubleThresholdCheck(lower=100, high=200, nmsimg=[]):
             elif threshold_img[i, j] >= high:
                 threshold_img[i, j] = 255
                 zhan.append([i, j])
-    # 循环坐标,遍历坐标8个领域点,如果有一个为强边缘,则为强边缘
+    # 循环坐标,强边缘旁边的8个点,哪个点为若边缘,则将其标记为强边缘
     while not len(zhan) == 0:
         temp_1, temp_2 = zhan.pop()  # 出栈
         a = threshold_img[temp_1 - 1:temp_1 + 2, temp_2 - 1:temp_2 + 2]
