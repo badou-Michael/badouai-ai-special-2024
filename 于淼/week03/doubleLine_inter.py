@@ -37,3 +37,4 @@ print("目标图尺寸：", aim_img.shape)
 cv2.imshow("doubleImg",aim_img)
 cv2.imshow("sImg",img)
 cv2.waitKey()
+
