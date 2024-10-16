@@ -1,0 +1,52 @@
+"""
+    add noise by interface
+    author: jiang hua
+    create date: 2024-09-28
+
+    函数式：skimage.util.random_noise(image,mode='',seed=None,clip=None,**kwargs)
+    image: 输入图像，类型为ndarray
+    mode: 噪声类型，列举如下：
+        'gaussian': 高斯噪声
+        'localvar': 高斯分布的加性噪声，在图像每个点都有特点的局部方差
+        'poisson': 泊松噪声
+        'salt': 盐噪声，随机将图像像素值变为1
+        'pepper': 椒噪声，随机将图像像素值变为0或-1
+        's&p': 椒盐噪声
+        'speckle': 均匀噪声，均值mean,方差variance,out=image+n*image,n是具有特定均值和方差的均匀噪声
+    seed: 可选，int类型，如果录入，则会在生成噪声前设置随机种子
+    clip: 可选，bool类型，如果为True(default),则在加入'speckle,possion,或者gaussian这三种噪声后，进行剪切以保证图像数据点都在【0,1】或者【1，-1】之间，
+    若为False,则数据可能超过这个范围
+    mean: 可选，float类型，用于'gauassian'和'speckle'的均值设置，默认为0
+    var: 可选，float类型，用于'gaussian'和'speckle'的方差设置，默认为0.01
+    local_vars: 可选，ndarray类型，用于'localvar'的图像每个像素点处的局部方差设置
+    amount: 可选，float类型，用于'salt','pepper','s&p'类型噪声比例，默认0.05
+    salt_vs_pepper: 可选，float类型，用于's&p'中盐噪声与椒噪声的比例，范围为【0,1】，默认0.5
+"""
+from skimage import util
+import matplotlib.pyplot as plt
+from PIL import Image
+import numpy as np
+
+
+def add_noise(image, scale, noise_tpe):
+    image = np.array(image)
+    if noise_tpe == "gaussian":
+        return util.random_noise(image, mode="gaussian", mean=0, var=0.01)
+    elif noise_tpe == "s&p":
+        return util.random_noise(image, mode="s&p", amount=scale)
+
+
+if __name__ == "__main__":
+    img = Image.open("lenna.png")
+    gaussian_img = add_noise(img, 0.01, "gaussian")
+    sP_img = add_noise(img, 0.1, "s&p")
+    plt.subplot(221)
+    plt.title("img")
+    plt.imshow(img)
+    plt.subplot(222)
+    plt.title("gaussian_img")
+    plt.imshow(gaussian_img)
+    plt.subplot(223)
+    plt.title("sP_img")
+    plt.imshow(sP_img)
+    plt.show()
