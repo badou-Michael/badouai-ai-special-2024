@@ -129,31 +129,11 @@ def doubleThresholdCheck(lower=100, high=200, nmsimg=[]):
     # 循环坐标,强边缘旁边的8个点,哪个点为若边缘,则将其标记为强边缘
     while not len(zhan) == 0:
         temp_1, temp_2 = zhan.pop()  # 出栈
-        a = threshold_img[temp_1 - 1:temp_1 + 2, temp_2 - 1:temp_2 + 2]
-        if (a[0, 0] < high) and (a[0, 0] > lower):
-            threshold_img[temp_1 - 1, temp_2 - 1] = 255  # 这个像素点标记为边缘
-            zhan.append([temp_1 - 1, temp_2 - 1])  # 进栈,如果这个点是其它若边缘的8邻点,则其它邻点也为真实边缘
-        if (a[0, 1] < high) and (a[0, 1] > lower):
-            threshold_img[temp_1 - 1, temp_2] = 255
-            zhan.append([temp_1 - 1, temp_2])
-        if (a[0, 2] < high) and (a[0, 2] > lower):
-            threshold_img[temp_1 - 1, temp_2 + 1] = 255
-            zhan.append([temp_1 - 1, temp_2 + 1])
-        if (a[1, 0] < high) and (a[1, 0] > lower):
-            threshold_img[temp_1, temp_2 - 1] = 255
-            zhan.append([temp_1, temp_2 - 1])
-        if (a[1, 2] < high) and (a[1, 2] > lower):
-            threshold_img[temp_1, temp_2 + 1] = 255
-            zhan.append([temp_1, temp_2 + 1])
-        if (a[2, 0] < high) and (a[2, 0] > lower):
-            threshold_img[temp_1 + 1, temp_2 - 1] = 255
-            zhan.append([temp_1 + 1, temp_2 - 1])
-        if (a[2, 1] < high) and (a[2, 1] > lower):
-            threshold_img[temp_1 + 1, temp_2] = 255
-            zhan.append([temp_1 + 1, temp_2])
-        if (a[2, 2] < high) and (a[2, 2] > lower):
-            threshold_img[temp_1 + 1, temp_2 + 1] = 255
-            zhan.append([temp_1 + 1, temp_2 + 1])
+        for i in range(temp_1 - 1,temp_1 + 2):
+            for j in range(temp_2 - 1,temp_2 + 2):
+                if threshold_img[i,j]>lower and threshold_img[i,j]<high:
+                    threshold_img[i,j] = 255
+                    zhan.append([i,j])
     for i in range(threshold_img.shape[0]):
         for j in range(threshold_img.shape[1]):
             if threshold_img[i, j] != 0 and threshold_img[i, j] != 255:
