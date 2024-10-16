@@ -1,0 +1,49 @@
+# 实现椒盐噪声
+
+import cv2 as cv
+import numpy as np
+from PIL import Image
+from skimage import util
+import random
+
+# 调接口
+# img = cv.imread("lenna.png")
+# noise_gs_img=util.random_noise(img,mode='pepper')
+#
+# cv.imshow("source", img)
+# cv.imshow("lenna",noise_gs_img)
+# cv.imwrite('lenna_noise.png',noise_gs_img*255)
+# cv.waitKey(0)
+# cv.destroyAllWindows()
+
+
+# 手动实现
+def salt_pepper_noise(src, percentage):
+
+    NoiseImg = src.copy()
+    NoiseNum = int(percentage * src.shape[0] * src.shape[1])
+
+    for i in range(NoiseNum):
+        #取一个随机点
+        randX = random.randint(0, src.shape[0] - 1)
+        randY = random.randint(0, src.shape[1] - 1)
+        #随生成一个浮点数0-1，转成黑白
+        if random.random() <= 0.5:
+            NoiseImg[randX, randY] = 0  #椒噪声黑色
+        else:
+            NoiseImg[randX, randY] = 255  #盐噪声白色
+
+    return NoiseImg
+
+
+#读取灰度图片
+img = cv.imread('lenna.png', 0)
+
+#添加椒盐噪声，这里假设噪声比例为 20%
+img_with_noise = salt_pepper_noise(img, 0.2)
+
+# 显示图片
+cv.imshow('Original Image', img)
+cv.imshow('Image with Salt and Pepper Noise', img_with_noise)
+cv.waitKey(0)
+cv.destroyAllWindows()

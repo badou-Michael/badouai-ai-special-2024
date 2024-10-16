@@ -1,0 +1,27 @@
+#!/usr/bin/env python
+__coding__ = "utf-8"
+__author__ = "张宇航"
+
+"""
+-------------------------------------------------
+   Description :	TODO：
+   SourceFile  :	HistogramEqualization
+   Author      :	zhangyuhang
+   Date	       :	2024-09-13
+-------------------------------------------------
+"""
+
+import cv2
+import numpy as np
+from matplotlib import pyplot as plt
+
+img = cv2.imread("lenna.png", 0)
+dst = cv2.equalizeHist(img)
+hist = cv2.calcHist([dst],[0],None,[256],[0,256])
+
+plt.figure()
+plt.hist(dst.ravel(), 256)
+plt.show()
+
+cv2.imshow("Histogram Equalization", np.hstack([gray, dst]))
+cv2.waitKey(0)

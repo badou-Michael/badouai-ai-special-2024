@@ -1,0 +1,79 @@
+ [模块3:PCA实现] 一:PCA主成分分析法,根据原理写代码实现
+"""
+PCA主成分分析方法步骤:
+1- 样本矩阵X(M*N)零均值化(即中心化)
+2- 计算协方差矩阵  注意,应该对中心化后的样本矩阵求协方差
+3- 求解特征值和特征向量
+4- 将特征值降序后作为列取前K个特征向量合并--即得到了降维转换矩阵(特征矩阵)
+5- 将样本矩阵映射到降维转换矩阵上,即得到了M行K列的降维矩阵
+"""
+import numpy as np
+
+class PCA(object):                           # 定义类(PCA函数包)
+    def __init__(self,X,K):                   # 函数1 :__init__ 初始化函数及定义未知对象的属性(对象未知,约定成俗使用self.属性名)
+        self.X=X                             # 样本矩阵X
+        self.K=K                              # 矩阵X 的降维矩阵的列数,即要取的特征的个数K
+        self.centerX=[]                      # X 中心化后的矩阵
+        self.covX=[]                  # X 的协方差矩阵
+        self.U = []                       # X 的 前K个特征值对应的特征向量组成的 降维转换矩阵
+        self.Z=[]                        # X 的降维矩阵,PCA主成分分析后的输出结果
+
+        self.centerX =self.cent()
+        self.covX =self.cov()
+        self.U = self._u()
+        self.Z = self._Z()
+    def cent(self):                         # 函数2: cent()函数,作用是返回 输入矩阵的中心化矩阵
+        mean = np.mean(self.X,axis=0)    # np.mean()函数功能,求样本矩阵X的每列的均值(特征均值)
+        centerX = self.X -mean       # 中心化样本矩阵X
+        print('样本的特征均值mean\n',mean)
+        print('样本矩阵X的中心化centerX\n',centerX)
+        return centerX
+
+    def cov(self):                # 函数3: cov()作用:返回 输入矩阵X 的协方差矩阵,公式cov=(X.T  * X)/(M-1)  ---矩阵X的转置 乘以 X 再除以(X的总样本数[即行数]-1)
+        m = self.centerX[0]      # 样本集的样例总数 (样本矩阵中,一行为一个样例,一列为一个特征)
+        covX = np.dot(self.centerX.T,self.centerX) /(m-1)        # 根据公式求得中心化矩阵centerX的协方差矩阵covX
+        print(covX)
+        return covX
+
+    def _u(self):                              
+        a,b = np.linalg.eig(self.covX)
+        print('特征样本的协方差矩阵covX的特征值\n',a)
+        print('特征样本的协方差矩阵covX的特征向量\n',b)
+        desc_a=np.argsort(-1* a )
+        UT = [b[:,desc_a[i]] for i in range(self.K)]    # ???
+        U = np.transpose(UT)
+        print('%d阶降维矩阵U\n'%self.K,U)
+        return U
+    def _Z(self):
+        Z = np.dot(self.X,self.U)
+        # print('Z的类型\n',type(self.Z))
+        # print('Xshape:',np.shape(self.X))
+        # print('U shape:',np.shape(self.U))
+        # print('Z shape:', np.shape(self.Z))
+        # print('样本矩阵X的降维矩阵out:\n',Z)
+        print('Z的类型\n', type(self.Z))
+        print('Xshape:', self.X.shape)
+        print('U shape:', self.U.shape)
+        print('Z shape:', np.shape(self.Z))     
+                                                 
+        print('样本矩阵X的降维矩阵out:\n', Z)
+        return Z
+
+import numpy as np
+if __name__ == '__main__':
+    X = np.array([[15, 12, 10],
+                  [12, 8, 9],
+                  [12, 8, 9],
+                  [6, 9, 16],
+                  [5, 8, 10],
+                  [4, 22, 16],
+                  [6, 10, 12],
+                  [5, 7, 11],
+                  [18, 12, 14],
+                  [10, 10, 12]])
+    K = np.shape(X)[1] - 1
+    print(type(X))
+    print(X.shape)
+    print(X.ndim)
+    print('输入的样本矩阵X\n',X)
+    pca= PCA(X,K)

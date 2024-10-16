@@ -59,6 +59,6 @@ if __name__ == '__main__':
     reduce_eigen_vector = eigen_vector[:,sort[:K]]
     # 降维后的特征向量
     print("降维后的特征向量\n",reduce_eigen_vector)
-    #原始数据投影到特征向量
-    pca_data = np.dot(X,reduce_eigen_vector)
+    #数据投影到特征向量，这里需要注意是去中心化后的数据
+    pca_data = np.dot(X_av,reduce_eigen_vector)
     print("样本x的降维矩阵\n",pca_data)
