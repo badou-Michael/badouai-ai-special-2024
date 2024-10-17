@@ -25,7 +25,7 @@ def add_salt_and_pepper_noise(image, salt_prob=0.01, pepper_prob=0.02):
 
 
 # 读取一张示例图像
-image = cv2.imread('sea.jpg')  # 替换为图像路径
+image = cv2.imread('../sea.jpg')  # 替换为图像路径
 
 # 添加高斯噪声
 gaussian_noisy_image = add_gaussian_noise(image)
