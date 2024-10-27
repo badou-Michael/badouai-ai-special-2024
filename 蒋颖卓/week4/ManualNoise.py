@@ -1,10 +1,7 @@
-#!/usr/bin/python
-# -*- coding: utf-8 -*-
 
 import numpy as np
 import cv2
 import random
-
 
 def Gaussian_Noise(img, means, sigma, percentage):
     NoiseImg = img.copy()
@@ -36,10 +33,6 @@ def Salt_Pepper_Noise(img, percentage):
 
     # 输出图像
     return NoiseImg.astype(np.uint8)
-
-
-
-
 
 
 img = cv2.imread('C:/Users/DMR/Desktop/1.png')
