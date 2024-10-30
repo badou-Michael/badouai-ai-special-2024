@@ -1,0 +1,65 @@
+import numpy as np
+class CPCA(object):
+    # init定义
+    def __init__(self,X,K):
+        self.X=X
+        self.K=K
+
+        self.centerX=[]
+        self.C=[]
+        self.U=[]
+        self.Z=[]
+
+        self.centerX=self._centralized()
+        self.C=self._cov()
+        self.U=self._U()
+        self.Z=self._Z()
+
+        # 中心化
+    def _centralized(self):
+            print('样本矩阵X:\n', self.X)
+            centerX=[]
+            mean=np.array([np.mean(attr) for attr in self.X.T])
+            print('样本集的特征均值:\n',mean)
+            centerX=self.X-mean
+            print('样本矩阵X的中心化centerX:\n', centerX)
+            return centerX
+        # 协方差
+    def _cov(self):
+            ns = np.shape(self.centerX)[0]
+            C = np.dot(self.centerX.T, self.centerX) / (ns - 1)
+            print('样本矩阵X的协方差矩阵C:\n', C)
+            return C
+        # 转换矩阵
+    def _U(self):
+            a,b = np.linalg.eig(self.C)
+            print('样本集的协方差矩阵C的特征值:\n', a)
+            print('样本集的协方差矩阵C的特征向量:\n', b)
+            ina= np.argsort(-1*a)
+            UT=[b[:,ina[i]] for i in range(self.K)]
+            U =np.transpose(UT)
+            print('%d阶降维转换矩阵U:\n' % self.K, U)
+            return U
+
+    def _Z(self):
+            Z=np.dot(self.X,self.U)
+            print('X shape:', np.shape(self.X))
+            print('U shape:', np.shape(self.U))
+            print('Z shape:', np.shape(Z))
+            print('样本矩阵X的降维矩阵Z:\n', Z)
+            return Z
+
+if __name__=='__main__':
+    X=np.array([
+        [12,5,9,18],
+        [51,9,8,32],
+        [16,24,9,21],
+        [66,51,9,45],
+        [12,51,32,36],
+        [12,18,6,9],
+        [41,76,52,19],
+        [15,16,18,21]
+    ])
+    K=np.shape(X)[1]-1
+    print('样本集(8行4列，8个样例，每个样例4个特征):\n', X)
+    pca=CPCA(X,K)
