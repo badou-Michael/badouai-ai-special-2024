@@ -1,0 +1,121 @@
+#高斯
+import numpy as np
+import cv2
+import random
+
+def gaosi(src,mean,sigma,percentage):
+    NoiseImg = src
+    NoiseNum = int(percentage*src.shape[0]*src.shape[1])
+
+    for i in range(NoiseNum):
+        X = random.randint(0,src.shape[0]-1)
+        Y = random.randint(0,src.shape[1]-1)
+
+        NoiseImg[X,Y] = NoiseImg[X,Y] + random.gauss(mean,sigma)
+
+        if NoiseImg[X,Y] < 0:
+            NoiseImg[X, Y] = 0
+        if NoiseImg[X, Y] > 255:
+            NoiseImg[X, Y] = 255
+
+    return NoiseImg
+
+img = cv2.imread("./lenna.png",0)
+gosiimg = gaosi(img,4,16,0.8)
+cv2.imshow("gaosi",gosiimg)
+cv2.waitKey(0)
+
+
+#椒盐
+import numpy as np
+import cv2
+import random
+
+def jiaoyan(src,percentage):
+    NoiseImg = src
+    NoiseNum = int(percentage*src.shape[0]*src.shape[1])
+
+    for i in range(NoiseNum):
+        X = random.randint(0,src.shape[0]-1)
+        Y = random.randint(0,src.shape[1]-1)
+
+        if random.random() <= 0.5:
+            NoiseImg[X,Y] = 0
+        else:
+            NoiseImg[X,Y] = 255
+
+    return NoiseImg
+
+img = cv2.imread("./lenna.png", 0)
+jiaoyanimg = jiaoyan(img,0.1)
+cv2.imshow("jiaoyan", jiaoyanimg)
+cv2.waitKey(0)
+
+
+#噪声接口调用
+import cv2
+from skimage import util
+
+img = cv2.imread("./lenna.png",0)
+img1 = util.random_noise(img,mode="s&p")
+img2 = util.random_noise(img,mode="speckle")
+
+cv2.imshow("s&p",img1)
+cv2.imshow("speckle",img2)
+cv2.waitKey(0)
+
+
+#实现pca
+import numpy as np
+
+class CPCA:
+    def __init__(self,X,K):
+        self.X = X
+        self.K = K
+        self.centralX = []
+        self.C = []
+        self.U = []
+        self.Z = []
+
+        self.centralX = self._central()
+        self.C = self._cov()
+        self.U = self._U()
+        self.Z = self._Z()
+
+    def _central(self):
+        print('样本矩阵X:\n', self.X)
+        mean = np.array([np.mean(i) for i in self.X.T])
+        cenX = self.X - mean
+        return cenX
+
+    def _cov(self):
+        m = np.shape(self.centralX)[0]
+        cov = np.dot(self.centralX.T,self.centralX)*1/(m-1)
+        return cov
+
+    def _U(self):
+        a,b = np.linalg.eig(self.C)
+        xj = np.argsort(-1*a)
+        UT = [b[:,xj[i]] for i in range(self.K)]
+        U = np.transpose(UT)
+        return U
+
+    def _Z(self):
+        Z = np.dot(self.X,self.U)
+        print('样本矩阵X的降维矩阵Z:\n', Z)
+        return Z
+
+if __name__=='__main__':
+    '10样本3特征的样本集, 行为样例，列为特征维度'
+    X = np.array([[10, 15, 29],
+                  [15, 46, 13],
+                  [23, 21, 30],
+                  [11, 9,  35],
+                  [42, 45, 11],
+                  [9,  48, 5],
+                  [11, 21, 14],
+                  [8,  5,  15],
+                  [11, 12, 21],
+                  [21, 20, 25]])
+    K = np.shape(X)[1] - 1
+    pca = CPCA(X,K)
