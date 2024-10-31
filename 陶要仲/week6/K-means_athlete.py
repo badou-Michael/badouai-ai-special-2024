@@ -1,6 +1,6 @@
 # coding=utf-8  
 from sklearn.cluster import KMeans
- 
+import random
 """
 第一部分：数据集
 X表示二维矩阵数据，篮球运动员比赛数据
@@ -8,6 +8,8 @@ X表示二维矩阵数据，篮球运动员比赛数据
 第一列表示球员每分钟助攻数：assists_per_minute
 第二列表示球员每分钟得分数：points_per_minute
 """
+
+
 X = [[0.0888, 0.5885],
      [0.1399, 0.8291],
      [0.0747, 0.4974],
@@ -30,9 +32,14 @@ X = [[0.0888, 0.5885],
      [0.2567, 0.4326],
      [0.1956, 0.4280]   
     ]
- 
+
+for i in range(100):
+     # a, b = 1.5, 10.5
+     r1 = round(random.uniform(0, 0.25), 2)
+     r2 = round(random.uniform(0.00, 1.00), 2)
+     X.append([r1,r2])
 #输出数据集
-print (X)
+print (type(X))
 
 """
 第二部分：KMeans聚类
