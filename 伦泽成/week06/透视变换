@@ -1,0 +1,25 @@
+import numpy as np
+import cv2
+
+#原图读入
+img = cv2.imread('photo1.jpg')
+print(img)
+
+#选原图的四个点
+src = np.float32([[207, 152], [518, 286], [16, 601], [342, 731]])
+#选目标图的四个点
+dst = np.float32([[0, 0], [337, 0], [0, 480], [337, 480]])
+
+#求图像透视变换矩阵
+m = cv2.getPerspectiveTransform(src, dst)
+print(m)
+
+#图像透视变换
+result = cv2.warpPerspective(img, m, [337, 480])
+print(result)
+
+#输出原图和透视变换结果图
+cv2.imshow('img', img)
+cv2.imshow('result', result)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
