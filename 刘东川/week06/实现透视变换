@@ -1,0 +1,35 @@
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+
+# 读取图像
+image = cv2.imread('lenna.png')
+
+# 定义源点和目标点
+src_points = np.float32([[100, 100], [200, 100], [100, 200], [200, 200]])
+dst_points = np.float32([[80, 80], [220, 50], [100, 250], [210, 220]])
+
+# 计算透视变换矩阵
+matrix = cv2.getPerspectiveTransform(src_points, dst_points)
+
+# 进行透视变换
+transformed_image = cv2.warpPerspective(image, matrix, (image.shape[1], image.shape[0]))
+
+# 将BGR图像转换为RGB格式
+image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+transformed_image = cv2.cvtColor(transformed_image, cv2.COLOR_BGR2RGB)
+
+# 创建一个图形并显示两个图像
+plt.figure(figsize=(10, 5))
+plt.subplot(1, 2, 1)
+plt.title('Original Image')
+plt.imshow(image)
+plt.axis('off')
+
+plt.subplot(1, 2, 2)
+plt.title('Transformed Image')
+plt.imshow(transformed_image)
+plt.axis('off')
+
+plt.tight_layout()
+plt.show()
