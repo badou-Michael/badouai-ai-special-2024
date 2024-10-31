@@ -6,6 +6,7 @@
 """
 import cv2
 import numpy as np
+from matplotlib import pyplot as plt
 
 from util_tools.util_tools import UtilTools
 
@@ -48,6 +49,30 @@ class HomeworkW6(object):
         result = cv2.warpPerspective(image_array_copy, warp_matrix, (512, 512))
         return result
 
+    def k_means(self, image_array):
+        rows, cols = image_array.shape[:]
+        # 图像二维像素转换为一维
+        data = image_array.reshape((rows * cols, 1))
+        data = np.float32(data)
+        # 停止条件 (type,max_iter,epsilon)
+        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
+        # 设置标签
+        flags = cv2.KMEANS_RANDOM_CENTERS
+        # K-Means聚类 聚集成4类
+        compactness, labels, centers = cv2.kmeans(data, 4, None, criteria, 10, flags)
+        # 生成最终图像
+        dst = labels.reshape((image_array.shape[0], image_array.shape[1]))
+        # 用来正常显示中文标签
+        plt.rcParams['font.sans-serif'] = ['SimHei']
+        # 显示图像
+        titles = [u'原始图像', u'聚类图像']
+        images = [image_array, dst]
+        for i in range(2):
+            plt.subplot(1, 2, i + 1), plt.imshow(images[i], 'gray'), plt.title(titles[i])
+            plt.xticks([]), plt.yticks([])
+        plt.show()
+
+
 
 if __name__ == '__main__':
     image_path = UtilTools.get_file_path('photo1.jpg')
@@ -59,3 +84,6 @@ if __name__ == '__main__':
     cv2.imshow("src", image_array)
     cv2.imshow("result", result)
     cv2.waitKey(0)
+    image_path_1 = UtilTools.get_file_path('lenna.png')
+    image_array_1 = cv2.imread(image_path_1, 0)
+    homework_w6.k_means(image_array_1)
