@@ -1,36 +1,17 @@
 import cv2
 import numpy as np
-import matplotlib.pyplot as plt
 
-def Warp(src,dst):
-    assert src.shape[0] == dst.shape[0]  and src.shape[0]>=4
-    nums = src.shape[0]
-    A = np.zeros((2*nums,8))
-    B = np.zeros((2*nums,1))
-    for i in range(0,nums):
-        A_i = src[i,:]
-        B_i = dst[i,:]
-        A[2*i,:] = [A_i[0],A_i[1],1,0,0,0,-A_i[0]*B_i[0],-A_i[1]*B_i[0]]
-        B[2*i] = B_i[0]
-        A[2*i+1, :] = [0, 0, 0, A_i[0], A_i[1], 1, -A_i[0]*B_i[1], -A_i[1]*B_i[1]]
-        B[2*i+1] = B_i[1]
+img = cv2.imread("lenna.png")
 
-    A = np.mat(A)
+result = img.copy()
 
-    warpMatrix = A.I * B
-
-    warpMatrix = np.array(warpMatrix).T[0]
-    warpMatrix = np.insert(warpMatrix, warpMatrix.shape[0], values=1.0, axis=0)  # 插入a_33 = 1
-    warpMatrix = warpMatrix.reshape((3, 3))
-    return warpMatrix
+src = np.float32([[21,77],[25,45],[422,512],[426,378]])
+dst = np.float32([[29,84],[55,45],[99,67],[248,415]])
 
 
-if __name__ == '__main__':
-    src = [[21.0,77.0],[25.0,45.0],[422.0,512.0],[426.0,745.0]]
-    src = np.array(src)
+m = cv2.getPerspectiveTransform(src,dst)
 
-    dst = [[29.0,84.0],[55.0,45.0],[99.0,67.0],[248.0,874.0]]
-    dst = np.array(dst)
-
-    warpMaurix = Warp(src,dst)
-    print(warpMaurix)
+result = cv2.warpPerspective(result, m , (248,415))
+cv2.imshow("src",src)
+cv2.imshow("result", result)
+cv2.waitKey(0)
