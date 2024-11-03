@@ -1,0 +1,28 @@
+import numpy as np
+import cv2
+
+# 添加椒盐噪声
+def add_salt_and_pepper_noise(image, salt_pepper_ratio=0.01, amount=0.05):
+    row, col, ch = image.shape
+    noisy_image = np.copy(image)
+
+    # 盐噪声
+    num_salt = np.ceil(amount * image.size * salt_pepper_ratio)
+    coords = [np.random.randint(0, i - 1, int(num_salt)) for i in image.shape]
+    noisy_image[coords[0], coords[1], :] = 255
+
+    # 椒噪声
+    num_pepper = np.ceil(amount * image.size * (1.0 - salt_pepper_ratio))
+    coords = [np.random.randint(0, i - 1, int(num_pepper)) for i in image.shape]
+    noisy_image[coords[0], coords[1], :] = 0
+
+    return noisy_image
+
+# 读取图像并添加椒盐噪声
+image = cv2.imread('lenna.png')
+noisy_image = add_salt_and_pepper_noise(image)
+
+# 显示处理后的图像
+cv2.imshow('Salt and Pepper Noise', noisy_image)
+cv2.waitKey(0)
+cv2.destroyAllWindows()

@@ -1,0 +1,54 @@
+import numpy as np
+import cv2
+#最临近插值
+def nearest_interpolation(src_img, target_size):
+    src_h, src_w, channels = src_img.shape
+    target_h, target_w = target_size
+    ratio_h = target_h / src_h
+    ratio_w = target_w / src_w
+    target_img = np.zeros((target_h, target_w, channels), dtype=np.uint8)
+    for i in range(target_h):
+        for j in range(target_w):
+            src_y = round(i / ratio_h)
+            src_x = round(j / ratio_w)
+            if src_y >= src_h:
+                src_y = src_h - 1
+            if src_x >= src_w:
+                src_x = src_w - 1
+            target_img[i, j] = src_img[src_y, src_x]
+    return target_img
+
+#双线性插值
+ def bilinear_interpolation(src_img, target_size):
+    src_h, src_w, channels = src_img.shape
+    target_h, target_w = target_size
+    ratio_h = target_h / src_h
+    ratio_w = target_w / src_w
+    target_img = np.zeros((target_h, target_w, channels), dtype=np.uint8)
+    for i in range(target_h):
+        for j in range(target_w):
+            src_y = i / ratio_h
+            src_x = j / ratio_w
+            y1 = int(np.floor(src_y))
+            y2 = min(y1 + 1, src_h - 1)
+            x1 = int(np.floor(src_x))
+            x2 = min(x1 + 1, src_w - 1)
+            dy = src_y - y1
+            dx = src_x - x1
+            for c in range(channels):
+                value1 = (1 - dx) * src_img[y1, x1, c] + dx * src_img[y1, x2, c]
+                value2 = (1 - dx) * src_img[y2, x1, c] + dx * src_img[y2, x2, c]
+                target_img[i, j, c] = int((1 - dy) * value1 + dy * value2)
+    return target_img
+
+#调用最临近插值和双线性插值函数
+img = cv2.imread('C:/Users/matebookXpro/Desktop/赵明阳/AI/near_bilinear_test.jpg')
+target_size = (800, 600)
+nearest_img = nearest_interpolation(img, target_size)
+bilinear_img = bilinear_interpolation(img, target_size)
+
+cv2.imshow('Original Image', img)
+cv2.imshow('Nearest Interpolation', nearest_img)
+cv2.imshow('Bilinear Interpolation', bilinear_img)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
