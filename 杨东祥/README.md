@@ -13,5 +13,8 @@
   * 实现pca
 * week05
   * 实现canny（尽量用手写实现）
+* week06
+  * 实现透视变化
+  * 实现kmeans
 
 
