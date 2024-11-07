@@ -1,0 +1,9 @@
+import cv2
+import numpy as np
+
+# canny实现
+img=cv2.imread("lenna.png",1)
+gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+canny_edge = cv2.Canny(gray,100,200)
+cv2.imshow("canny",canny_edge)
+cv2.waitKey()
