@@ -81,7 +81,7 @@ def ransac(data, model, n, k, t, d, return_all=False):
         test_idxs = all_ids[n:]
         print("maybe_idxs\n",maybe_idxs)
         # 获取(maybe_idxs)行数据(Xi,Yi)
-        maybe_inliers = data[maybe_idxs:]
+        maybe_inliers = data[maybe_idxs,:]
         test_points = data[test_idxs]  # 其它群的（X,y）
         #最小二乘法拟合模型 2.根据这几个点，得到合适的模型，
         maybemodel = model.fit(maybe_inliers)
