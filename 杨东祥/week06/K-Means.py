@@ -41,15 +41,21 @@ flags = cv2.KMEANS_RANDOM_CENTERS
 #K-Means聚类 聚集成4类
 compactness, labels, centers = cv2.kmeans(data, 4, None, criteria, 10, flags)
 
-#生成最终图像
+#生成聚簇标签填充的和原始图像相同的二维形状
 dst = labels.reshape((img.shape[0], img.shape[1]))
+
+# 使用 centers 填充每个簇的像素
+segmented_img = np.zeros_like(img)
+for i in range(centers.shape[0]):
+    segmented_img[dst == i] = centers[i]
+
 
 #用来正常显示中文标签
 plt.rcParams['font.sans-serif']=['SimHei']
 
 #显示图像
 titles = [u'原始图像', u'聚类图像']  
-images = [img, dst]  
+images = [img, segmented_img]
 for i in range(2):  
    plt.subplot(1,2,i+1), plt.imshow(images[i], 'gray'), 
    plt.title(titles[i])  

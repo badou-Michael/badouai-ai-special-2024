@@ -16,5 +16,8 @@
 * week06
   * 实现透视变化
   * 实现kmeans
+* week07
+  * 实现层次聚类
+  * 实现ransac
 
 
