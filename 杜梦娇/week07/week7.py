@@ -72,7 +72,6 @@ def ransac(data, iterations, threshold, n):
 
     return best_model, best_inliers
 
-
 # 生成带有噪声的数据
 np.random.seed(42)
 x = np.arange(0, 300, 0.5)
