@@ -13,7 +13,6 @@
 import cv2
 import matplotlib.pyplot as plt
 import math
-
 import numpy as np
 
 
@@ -96,8 +95,7 @@ def fun_sobel_kernel(gaussian_image):
             gradient_x[i, j] = np.sum(image_pad[i:i+3, j:j+3]*sobel_kernel_x)
             gradient_y[i, j] = np.sum(image_pad[i:i+3, j:j+3]*sobel_kernel_y)
             gradient_of_image[i, j] = np.sqrt(gradient_x[i,j]**2 + gradient_y[i, j]**2)
-    gradient_x[gradient_x == 0] = 0.1**10
-    # 梯度方向
+    gradient_x[gradient_x == 0] = 0.0000001   # 梯度方向
     tan = gradient_y / gradient_x
     sobel_image = gradient_of_image.astype(np.uint8)
     return tan, gradient_of_image, sobel_image
