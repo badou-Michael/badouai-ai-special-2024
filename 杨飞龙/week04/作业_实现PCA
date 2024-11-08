@@ -1,0 +1,80 @@
+# -*- coding: utf-8 -*-
+
+# 实现PCA
+
+import numpy as np
+
+#调函数
+# from sklearn.decomposition import PCA
+#
+# X = np.array([[-1,2,66,-1], [-2,6,58,-1], [-3,8,45,-2], [1,9,36,1], [2,10,62,1], [3,5,83,2]])
+# pca = PCA(n_components=2)
+# pca.fit(X)                  #训练
+# newX=pca.fit_transform(X)   #降维后的数据
+# # PCA(copy=True, n_components=2, whiten=False)
+# print(pca.explained_variance_ratio_)  #输出贡献率
+# print(newX)
+
+#手动实现1
+# class PCA():
+#     def __init__(self,n_components):
+#         self.n_components = n_components
+#
+#     def fit_transform(self,X):
+#         #中心点对称
+#         X = X - X.mean(axis=0)
+#         # 求协方差矩阵
+#         self.covariance = np.dot(X.T,X)/X.shape[0]
+#         # 求特征向量和特征值
+#         eig_vals,eig_vectors = np.linalg.eig(self.covariance)
+#         print("特征向量：",eig_vectors)
+#         print("特征值：",eig_vals)
+#         # 降序排列
+#         idx = np.argsort(-eig_vals)
+#         print('排序后的特征值:',idx)
+#         # 取特征向量里面的所有行和特征值排序后的前n列（降多少维度）
+#         self.components_ = eig_vectors[:,idx[:self.n_components]]
+#         print('降维后的特征向量：',self.components_)
+#         # 把原矩阵投影在降维后的特征向量上进行降维
+#         return np.dot(X, self.components_)
+#
+# pca = PCA(n_components=2)
+# X = np.array([[-1,2,66,-1], [-2,6,58,-1], [-3,8,45,-2], [1,9,36,1], [2,10,62,1], [3,5,83,2]])
+# newX=pca.fit_transform(X)
+# print(newX)
+
+#手动实现2
+# 创建数据矩阵
+X = np.array([
+    [-1, 2, 66, -1],
+    [-2, 6, 58, -1],
+    [-3, 8, 45, -2],
+    [1, 9, 36, 1],
+    [2, 10, 62, 1],
+    [3, 5, 83, 2]
+])
+
+# 标准化数据
+
+X_standardized = X - X.mean(axis=0)
+
+# 计算协方差矩阵
+cov_matrix = np.dot(X_standardized.T,X_standardized)/X_standardized.shape[0]
+
+# 计算协方差矩阵的特征值和特征向量
+eigenvalues, eigenvectors = np.linalg.eig(cov_matrix)
+
+# 排序特征值，并获取排序后的特征向量
+idx = np.argsort(-eigenvalues)
+eigenvectors = eigenvectors[:, idx]
+
+# 取排序后的前n个特征向量（n为降维后的维度数）
+n_components = 2
+principal_components = eigenvectors[:, :n_components]
+
+# 转换数据到主成分空间
+X_pca = np.dot(X_standardized, principal_components)
+
+# 打印降维后的数据
+print("降维后的数据:")
+print(X_pca)
