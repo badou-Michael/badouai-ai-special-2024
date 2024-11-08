@@ -1,0 +1,13 @@
+import cv2
+import numpy as np
+
+img = cv2.imread('photo1.jpg')
+# 顶点坐标
+src = np.float32([[207, 151], [517, 285], [17, 601], [343, 731]])
+dst = np.float32([[0, 0], [337, 0], [0, 488], [337, 488]])
+# 变换矩阵
+m = cv2.getPerspectiveTransform(src,dst)
+# 透视变换
+result = cv2.warpPerspective(img,m,(343,448))
+cv2.imshow('PerspectiveTransform',result)
+cv2.waitKey(0)
