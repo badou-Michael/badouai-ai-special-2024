@@ -1,0 +1,22 @@
+import cv2
+import numpy as np
+
+
+def nearest_interpolation(img):
+    height, width, channels = img.shape
+    empty_img = np.zeros((700, 700, channels), np.uint8)
+    sh = 700/height
+    sw = 700/width
+    for i in range(700):
+        for j in range(700):
+            x = int(i/sh+0.5)
+            y = int(j/sw+0.5)
+            empty_img[i, j] = img[x, y]
+    return empty_img
+
+
+img = cv2.imread('lenna.png')
+# resize_img = cv2.resize(img, (700, 700), interpolation=cv2.INTER_NEAREST)
+resize_img = nearest_interpolation(img)
+cv2.imshow('nearest_interpolation', resize_img)
+cv2.waitKey(0)
