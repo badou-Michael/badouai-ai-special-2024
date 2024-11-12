@@ -90,3 +90,15 @@ print(hash1)
 print(hash2)
 n=cmpHash(hash1,hash2)
 print('差值哈希算法相似度：',n)
+
+
+
+
+
+
+
+
+
+
+
+
