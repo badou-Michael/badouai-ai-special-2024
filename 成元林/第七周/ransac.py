@@ -16,8 +16,8 @@ class LinearLeastSquareModel:
         return x  # 返回最小平方和向量
 
     def get_error(self, data, model):
-        A = np.vstack( [data[:,i] for i in self.input_columns] ).T #第一列Xi-->行Xi
-        B = np.vstack( [data[:,i] for i in self.output_columns] ).T #第二列Yi-->行Yi
+        A = np.vstack( [data[:,i] for i in self.input_column] ).T #第一列Xi-->行Xi
+        B = np.vstack( [data[:,i] for i in self.output_column] ).T #第二列Yi-->行Yi
         B_fit = np.dot(A, model) #计算的y值,B_fit = model.k*A + model.b
         err_per_point = np.sum( (B - B_fit) ** 2, axis = 1 ) #sum squared error per row
         return err_per_point
@@ -119,6 +119,10 @@ def random_partition(n, n_data):
 
 if __name__ == '__main__':
     alldata,model,A_noisy,B_noisy = createData()
+
     ransac_fit, ransac_data = ransac(alldata, model, 50, 1000, 7e3, 300,return_all=True)
     pylab.plot(A_noisy[ransac_data['inliers'], 0], B_noisy[ransac_data['inliers'], 0], 'bx', label="RANSAC data")
-    linear_fit, resids, rank, s = sp.linalg.lstsq(all_data[:, 0], all_data[:, 1])
+    # linear_fit, resids, rank, s = sp.linalg.lstsq(alldata[:, 0], alldata[:, 1])
+    sort_idxs = np.argsort(A_exact[:, 0])
+    A_col0_sorted = A_exact[sort_idxs]  # 秩为2的数组
+    pylab.show()
