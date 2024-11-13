@@ -4,7 +4,26 @@ import numpy as np
 import cv2
 
 def warpPerspectiveMatrix(src, dst):
-    pass   # todo: 自行实现一个
+    assert src.shape == dst.shape and src.shape[0] >= 4
+    nums = src.shape[0]
+    A = np.zeros((2 * nums, 8)) # A * warpMatrix = B
+    B = np.zeros((2 * nums, 1))
+    for i in range(nums):
+        A_i = src[i,:]
+        B_i = dst[i,:]
+        A[2 * i, :]     = [A_i[0], A_i[1], 1, 0, 0, 0, -A_i[0]*B_i[0], -A_i[1]*B_i[0]]
+        A[2 * i + 1, :] = [0,0,0,A_i[0], A_i[1],1,-A_i[0]*B_i[1], -A_i[1]*B_i[1]]
+        
+        B[2*i]    = B_i[0]
+        B[2*i + 1] = B_i[1]
+
+    A = np.matrix(A)
+    warpMatrix = A.I * B
+
+    warpMatrix = warpMatrix.A.T[0]
+    warpMatrix = np.insert(warpMatrix, warpMatrix.shape[0], values=1.0, axis = 0)
+    warpMatrix = warpMatrix.reshape(3,3)
+    return warpMatrix
 
 if __name__ == '__main__':
     dst_w = 377
@@ -16,7 +35,8 @@ if __name__ == '__main__':
     # output_img = np.zeros((dst_h, dst_w, src_img.shape[2]), dtype=np.float32) 
     output_img = src_img.copy()[0:dst_h, 0:dst_w]
 
-    m = cv2.getPerspectiveTransform(src, dst)
+    # m = cv2.getPerspectiveTransform(src, dst)
+    m = warpPerspectiveMatrix(src, dst)
 
     for x in range(src_img.shape[0]):
         for y in range(src_img.shape[1]):
