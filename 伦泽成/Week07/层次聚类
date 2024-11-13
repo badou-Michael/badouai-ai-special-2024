@@ -1,0 +1,37 @@
+import matplotlib.pyplot as plt
+from scipy.cluster.hierarchy import dendrogram, linkage, fcluster
+from sklearn import datasets
+
+#导入数据集
+iris = datasets.load_iris()
+X = iris.data
+
+#进行层次聚类
+Z = linkage(X, 'ward')
+print(Z)
+labels = fcluster(Z, 6, 'distance')
+print(labels)
+
+#画出聚类树
+plt.rcParams['font.sans-serif'] = ['SimHei']
+plt.figure(1)
+dendrogram(Z)
+plt.title('层次聚类树')
+
+#切出各数据标签对应的样本矩阵
+X_label1 = X[labels == 1]
+X_label2 = X[labels == 2]
+X_label3 = X[labels == 3]
+X_label4 = X[labels == 4]
+
+#取第一个第二个特征画出散点图
+plt.figure(2)
+plt.scatter(X_label1[:, 0], X_label1[:, 1], c = 'red', marker = 'o', label = 'label1')
+plt.scatter(X_label2[:, 0], X_label2[:, 1], c = 'green', marker = '*', label = 'label2')
+plt.scatter(X_label3[:, 0], X_label3[:, 1], c = 'blue', marker = '+', label = 'label3')
+plt.scatter(X_label4[:, 0], X_label4[:, 1], c = 'black', marker = 'x', label = 'label4')
+plt.xlabel('sepal_length(cm)')
+plt.ylabel('sepal_width(cm)')
+plt.legend(loc = 'best')
+plt.title("层次聚类_iris")
+plt.show()
