@@ -19,5 +19,6 @@
 * week07
   * 实现层次聚类
   * 实现ransac
-
+* week08
+  * 均值Hash、差值Hash
 
