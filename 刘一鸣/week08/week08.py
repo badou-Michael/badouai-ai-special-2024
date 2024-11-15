@@ -2,7 +2,6 @@
 第八周作业：实现两种hash算法。
 '''
 
-import cv2
 from PIL import Image
 import imagehash
 
