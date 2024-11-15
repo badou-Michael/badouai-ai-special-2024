@@ -40,4 +40,5 @@ print(f"noise_gs_img shape: {noise_gs_img.shape}, dtype: {noise_gs_img.dtype}")
 print(f"img2 shape: {img2.shape}, dtype: {img2.dtype}")
 
 cv.imshow("1_2",np.hstack([noise_gs_img,img2]))
+cv.imwrite("../week08/1/lenna_noise.png", noise_gs_img)
 cv.waitKey()

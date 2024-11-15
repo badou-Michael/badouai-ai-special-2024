@@ -4,9 +4,6 @@
 # author: flame
 import numpy
 import scipy.special
-from click.termui import hidden_prompt_func
-from requests.packages import target
-from typing_extensions import final
 
 
 class NuturalNetwork:
