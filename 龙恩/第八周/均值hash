@@ -1,0 +1,30 @@
+import cv2
+import numpy as np
+
+def ahash(img):
+    img=cv2.resize(img,(8,8),interpolation=cv2.INTER_CUBIC)
+    gray=cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+    #print(gray)
+    avg=np.mean(gray)
+    #print(avg)
+    hash_matrix=(gray>avg).astype(int)
+    hash_str= ''.join(map(str, hash_matrix.flatten()))
+    return hash_str
+
+def com(hash1,hash2):
+    n=0
+    if len(hash1)!=len(hash2):
+        return -1
+    for i in range(len(hash1)):
+        if hash1[i]!=hash2[i]:
+            n=n+1
+    return n
+
+img1=cv2.imread('lenna.png')
+img2=cv2.imread('lenna_noise.png')
+hash1= ahash(img1)
+hash2= ahash(img2)
+print(hash1)
+print(hash2)
+n=com(hash1,hash2)
+print('均值哈希相似度：',n)
