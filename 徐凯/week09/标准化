@@ -1,0 +1,55 @@
+import numpy as np
+from matplotlib import pyplot as plt
+
+# 归一化的两种方式
+'''
+归一化（0-1）
+x_=(x-x_min)/(x_max-x_min)
+'''
+def Normalization1(x):
+    return [(float(i)-min(x))/float(max(x)-min(x)) for i in x]
+
+'''
+归一化（-1~1）
+x_=(x-x_mean)/(x_max-x_min)
+'''
+def Normalization2(x):
+    return [(float(i)-np.mean(x))/float(max(x)-min(x)) for i in x]
+
+'''
+零均值归一化
+x* = (x−μ)/σ     # 方差
+'''
+def z_score(x):
+    x_mean = np.mean(x)
+    print(x_mean)
+    s2 = sum([(i-x_mean)**2 for i in x])/len(x)
+    print(s2)
+    return [(i-x_mean)/s2 for i in x]
+
+
+l=[-10, 5, 5, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 8, 8, 9, 9, 9, 9, 9, 9, 10, 10, 10, 10, 10, 10, 10, 11, 11, 11, 11, 11, 11, 12, 12, 12, 12, 12, 13, 13, 13, 13, 14, 14, 14, 15, 15, 30]
+
+# cs1=[]         # 时间复杂度O(n*2)
+# for i in l:
+#     c = l.count(i)
+#     cs1.append(c)
+# print(cs1)
+
+from collections import Counter    # 时间复杂度O(n)
+counter = Counter(l)
+cs2 = [counter[i] for i in l]
+print(cs2)
+
+r = Normalization1(l)
+n = Normalization2(l)
+z = z_score(l)
+print(r)
+print(n)
+print(z)
+
+plt.plot(l,cs2)
+plt.plot(r,cs2)
+plt.plot(z,cs2)
+plt.plot(n,cs2)
+plt.show()
