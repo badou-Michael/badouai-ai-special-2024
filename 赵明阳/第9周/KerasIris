@@ -1,0 +1,40 @@
+import numpy as np
+from keras.models import Sequential
+from keras.layers import Dense
+from keras.utils import to_categorical
+from sklearn.datasets import load_iris
+from sklearn.model_selection import train_test_split
+
+# 加载鸢尾花数据集
+iris = load_iris()
+X = iris.data
+y = iris.target
+
+# 将标签进行独热编码，因为神经网络的输出层通常需要对应类别数量的神经元，每个神经元表示属于该类别的概率
+y_categorical = to_categorical(y)
+
+# 划分训练集和测试集
+X_train, X_test, y_train, y_test = train_test_split(X, y_categorical, test_size=0.2, random_state=42)
+
+# 创建一个顺序模型
+model = Sequential()
+
+# 添加输入层和第一个隐藏层
+model.add(Dense(10, input_dim=4, activation='relu'))
+
+# 添加第二个隐藏层
+model.add(Dense(8, activation='relu'))
+
+# 添加输出层，因为鸢尾花有3个类别，所以输出层有3个神经元，使用softmax激活函数将输出转换为类别概率
+model.add(Dense(3, activation='softmax'))
+
+# 编译模型，指定损失函数、优化器和评估指标
+model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+
+# 训练模型
+model.fit(X_train, y_train, epochs=100, batch_size=10, validation_data=(X_test, y_test))
+
+# 在测试集上评估模型
+loss, accuracy = model.evaluate(X_test, y_test)
+print(f"测试集上的损失: {loss}")
+print(f"测试集上的准确率: {accuracy}")
