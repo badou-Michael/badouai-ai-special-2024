@@ -1,0 +1,34 @@
+import numpy as np
+import scipy.cluster.hierarchy as sch
+import matplotlib.pyplot as plt
+
+# 层次聚类
+# 示例数据：每行表示一个数据点，每列表示一个特征
+# 比如，假设我们有5个数据点，每个数据点有2个特征（x, y坐标）
+data = np.array([
+     [1, 2],  # 数据点1
+     [2, 3],  # 数据点2
+     [3, 3],  # 数据点3
+     [6, 5],  # 数据点4
+     [7, 8],  # 数据点5
+])
+
+# 计算数据点之间的欧几里得距离
+# 使用scipy的linkage函数进行层次聚类
+Z = sch.linkage(data, method='ward')
+
+# 输出层次聚类的结果
+# Z 的形状是 (n-1, 4)，其中n是数据点的数量
+# 每一行表示一次合并的操作：
+# [簇1的索引，簇2的索引，簇间距离，簇的样本数]
+
+print("层次聚类的合并结果（每行表示一个合并操作）：")
+print(Z)
+
+# 绘制树状图
+plt.figure(figsize=(8, 6))
+sch.dendrogram(Z)
+plt.title("Hierarchical Clustering Dendrogram")
+plt.xlabel("Index of Data Points")
+plt.ylabel("Distance")
+plt.show()

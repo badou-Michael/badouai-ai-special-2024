@@ -1,0 +1,196 @@
+from google.colab import drive
+drive.mount('/content/drive')
+
+import cv2
+import numpy as np
+import random
+from numpy import shape 
+from google.colab.patches import cv2_imshow
+
+
+# 高斯噪声手写
+def GaussianNoise(img, mean, sigma, percent):
+  NoiseImg = img.copy()
+  NoiseNum = int(percent*img.shape[0]*img.shape[1])
+
+  for i in range(NoiseNum):
+    rand_x = random.randint(0, img.shape[0]-1)
+    rand_y = random.randint(0, img.shape[1]-1)
+    NoiseImg[rand_x, rand_y] =  NoiseImg[rand_x, rand_y] + random.gauss(mean, sigma)
+
+    # Gray_img
+    if NoiseImg[rand_x, rand_y] < 0:
+      NoiseImg[rand_x, rand_y] = 0
+    elif NoiseImg[rand_x, rand_y] > 255:
+      NoiseImg[rand_x, rand_y] = 255
+
+    # BGR_img
+    # for j in range(img.shape[2]):
+    #   if NoiseImg[rand_x, rand_y, j] < 0:
+    #     NoiseImg[rand_x, rand_y, j] = 0
+    #   elif NoiseImg[rand_x, rand_y, j] > 255:
+    #     NoiseImg[rand_x, rand_y, j] = 255
+  
+  return NoiseImg
+
+if __name__ == '__main__':
+  gray_img = cv2.imread('/content/drive/MyDrive/lenna.png', 0)
+  NoiseImg = GaussianNoise(gray_img, 2, 4, 0.8)
+  cv2_imshow(np.hstack((gray_img, NoiseImg)))
+
+  # img = cv2.imread('/content/drive/MyDrive/lenna.png')
+  # NoiseImg = GaussianNoise(img, 2, 4, 0.8)
+  # cv2_imshow(np.hstack((img, NoiseImg)))
+
+
+
+
+
+
+
+
+# 椒盐噪声手写
+def pepper_salt(img, percent):
+  NoiseImg = img.copy()
+  NoiseNum = int(percent*img.shape[0]*img.shape[1])
+
+  for i in range(NoiseNum):
+
+    rand_x = random.randint(0, img.shape[0]-1)
+    rand_y = random.randint(0, img.shape[1]-1)
+
+    # gray_img
+    # if random.random() <= 0.5:
+    #   NoiseImg[rand_x, rand_y] = 0
+    # else:
+    #   NoiseImg[rand_x, rand_y] = 255
+
+    # BGR_img
+    for j in range(img.shape[2]):
+      if random.random() <= 0.5:
+        NoiseImg[rand_x, rand_y, j] = 0
+      else:
+        NoiseImg[rand_x, rand_y, j] = 255
+
+  return NoiseImg
+
+if __name__ == '__main__':
+  # gray_img = cv2.imread('/content/drive/MyDrive/lenna.png', 0)
+  # NoiseImg = pepper_salt(gray_img, 0.8)
+  # cv2_imshow(np.hstack((gray_img, NoiseImg)))
+
+  img = cv2.imread('/content/drive/MyDrive/lenna.png')
+  NoiseImg = pepper_salt(img, 0.8)
+  cv2_imshow(np.hstack((img, NoiseImg)))
+
+
+
+
+
+
+
+
+# 高斯、椒盐、泊松噪声packages -- 调用接口之后数据范围变化
+from skimage import util
+
+img = cv2.imread('/content/drive/MyDrive/lenna.png')
+noise_gaussian_img = util.random_noise(img, mode='gaussian', mean=2, var=4, clip=True) # 无法控制范围
+noise_sp_img = util.random_noise(img, mode='s&p', amount=0.8, salt_vs_pepper=0.5, clip=True)
+noise_poisson_img = util.random_noise(img, mode='poisson', clip=True) # 无法控制范围
+
+noise_gaussian_img = (noise_gaussian_img * 255).astype(np.uint8)
+noise_sp_img = (noise_sp_img * 255).astype(np.uint8)
+noise_poisson_img = (noise_poisson_img * 255).astype(np.uint8)
+
+cv2_imshow(np.hstack((img, noise_gaussian_img, noise_sp_img, noise_poisson_img)))
+
+
+
+
+
+
+
+
+# PCA手写
+class PCA():
+  def __init__(self, n_components):
+    self.n_components = n_components
+  
+  def fit_transform(self, X):
+    self.n_features = X.shape[1]
+
+    # 求协方差矩阵
+    X = X - X.mean(axis=0)
+    self.covariance = np.dot(X.T, X)/X.shape[0]
+
+    # 求协方差矩阵的特征值和特征向量
+    eig_value, eig_vector = np.linalg.eig(self.covariance)
+
+    # 获得降序排列特征值的序号
+    idx = np.argsort(-eig_value)
+
+    # 降维矩阵
+    self.components = eig_vector[:, idx[:self.n_components]]
+
+    # 对X进行降维
+    return np.dot(X, self.components)
+
+if __name__ == '__main__':
+  pca = PCA(2)
+  X = np.array([[-1,2,66,-1], [-2,6,58,-1], [-3,8,45,-2], [1,9,36,1], [2,10,62,1], [3,5,83,2]])
+  new_X = pca.fit_transform(X)
+  print(X,'\n')
+  print(new_X)
+
+
+
+
+
+
+
+
+
+# PCA package
+from sklearn.decomposition import PCA
+X = np.array([[-1,2,66,-1], [-2,6,58,-1], [-3,8,45,-2], [1,9,36,1], [2,10,62,1], [3,5,83,2]])
+pca = PCA(n_components=2)
+new_X = pca.fit_transform(X)
+print(new_X)
+
+
+
+
+
+
+
+
+# iris数据PCA降维并可视化
+import matplotlib.pyplot as plt
+from sklearn.decomposition import PCA
+from sklearn.datasets import load_iris
+
+X, y = load_iris(return_X_y=True)
+pca = PCA(2)
+new_X = pca.fit_transform(X)
+
+# 降成二维
+red_x,red_y=[],[]
+blue_x,blue_y=[],[]
+green_x,green_y=[],[]
+
+for i in range(len(y)):
+  if y[i] == 0:
+    red_x.append(new_X[i][0])
+    red_y.append(new_X[i][1])
+  elif y[i] == 1:
+    blue_x.append(new_X[i][0])
+    blue_y.append(new_X[i][1])
+  else:
+    green_x.append(new_X[i][0])
+    green_y.append(new_X[i][1])
+
+plt.scatter(red_x, red_y, c='r', marker='x')
+plt.scatter(blue_x, blue_y, c='b', marker='D')
+plt.scatter(green_x, green_y, c='g', marker='.')
+plt.show()
+

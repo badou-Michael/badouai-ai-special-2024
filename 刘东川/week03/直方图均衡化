@@ -1,0 +1,48 @@
+import cv2
+import numpy as np
+from matplotlib import pyplot as plt
+if __name__ == "__main__":
+    # 读取图片
+    image_path = 'lenna.png' 
+    old_image = cv2.imread(image_path)
+    grey_image = cv2.imread(image_path,  0)
+  # 计算原始图像的灰度直方图
+    hist, bins = np.histogram(grey_image.flatten(), 256, [0, 256])
+
+    # 绘制原始图像
+    plt.figure()
+    plt.title("Original Grayscale Histogram")
+    plt.xlabel("Bins")
+    plt.ylabel("# of Pixels")
+    plt.plot(bins[:-1], hist, color='gray')
+
+    # 对原始图像应用直方图均衡化
+    equalized_image = cv2.equalizeHist(grey_image)
+
+    # 计算均衡化后图像
+    hist_eq, bins_eq = np.histogram(equalized_image.flatten(), 256, [0, 256])
+
+    # 绘制均衡化后图像
+    plt.figure()
+    plt.title("Equalized Grayscale Histogram")
+    plt.xlabel("Bins")
+    plt.ylabel("# of Pixels")
+    plt.plot(bins_eq[:-1], hist_eq, color='gray')
+
+    # 计算直方图
+    hist = cv2.calcHist([equalized_image], [0], None, [256], [0, 256])
+
+    # 绘制直方图
+    plt.plot(hist)
+    plt.title('Histogram')
+    plt.xlabel('Pixel Value')
+    plt.ylabel('Frequency')
+    plt.show()
+
+    # 显示原始图像和均衡化后的图像
+    cv2.imshow('Original Image',grey_image)
+    cv2.imshow('Equalized Image', equalized_image)
+
+    # 等待按键，然后关闭窗口
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
