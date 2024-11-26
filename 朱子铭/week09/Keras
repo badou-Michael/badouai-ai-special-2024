@@ -1,0 +1,179 @@
+[1]
+"""
+将训练数据和检测数据加载到内存中（第一次运行需要下载数据，比较慢）；
+train_images是用于训练系统的手写数字图片；
+train_labels是用于标注图片的信息；
+test_images是用于检测系统训练效果的图片；
+test_labels是test_images图片对应的数字标签。
+"""
+from tensorflow.keras.datasets import mnist
+
+(train_images, train_labels), (test_images, test_labels) = mnist.load_data()
+print("train_image.shape = ", train_images.shape)
+print("train_labels = ", train_labels)
+print("test_images.shape = ",test_images.shape)
+print("test_labels = ",test_labels)
+"""
+1.train_images.shape打印结果表明，train_images是一个含有60000个元素的数组。
+数组中的元素是一个二维数组，二维数组的行和列都是28，
+也就是说，一个数字图像的大小是28*28.
+2.train_labels打印结果表明，第一张手写数字图片的内容是数字5，第二张图片是数字0，以此类推。
+3.test_images.shape的打印结果表示，用于检验训练效果的图片有10000张。
+4.test_labels输出结果表明，用于检测的第一张图片内容是数字7，第二张是数字2，依此类推。
+"""
+
+[2]
+"""
+把用于测试的第一张图片打印出来看看
+"""
+digit = test_images[0]
+import matplotlib.pyplot as plt
+
+plt.imshow(digit, cmap=plt.cm.binary)
+plt.show()
+
+[3]
+"""
+使用tensorflow.Keras搭建一个有效识别图案的神经网络，
+1.layers:表示神经网络的一个数据处理层。（dense：全连接层）
+2.models.Sequential()：表示把每一个数据处理层串联起来。
+3.layers.Dense(...):构造一个数据处理层。
+4.input_shape(28*28,):表示当前处理层接收的数据格式必须是长和宽都是28的二维数组，
+后面的“，”表示数组里面的每一个元素到底包含多少个数字都没有关系。
+"""
+from tensorflow.keras import models
+from tensorflow.keras import layers
+
+# 使用 TensorFlow 的 Keras 模块中的 models 和 layers 类库
+# models 模块用于构建模型的高级 API，layers 模块提供了各种神经网络层的实现。
+
+network = models.Sequential()
+# 创建一个顺序模型，Sequential 模型是一种线性堆叠层的模型，
+# 数据会依次通过每一层进行处理。
+
+network.add(layers.Dense(512, activation="relu", input_shape=(28*28,)))
+# 向模型中添加一个全连接层（Dense 层）。
+# 参数解释：
+# - 512 表示该层有 512 个神经元。
+# - activation="relu" 指定该层的激活函数为 ReLU（Rectified Linear Unit），
+#   ReLU 函数在输入大于 0 时输出等于输入，小于 0 时输出为 0，
+#   它常用于神经网络中以引入非线性。
+# - input_shape=(28*28,) 定义该层的输入形状为长度为 28*28 的一维向量，
+#   这与后续处理的手写数字图像数据的形状相对应。
+
+network.add(layers.Dense(10, activation="softmax"))
+# 再次添加一个全连接层，该层有 10 个神经元。
+# activation="softmax" 使用 softmax 激活函数，softmax 函数通常用于多分类问题，
+# 它将输出转换为概率分布，使得各个输出值在 0 到 1 之间，且总和为 1。
+
+network.compile(optimizer="rmsprop", loss="categorical_crossentropy",
+                metrics=["accuracy"])
+# 编译模型。
+# optimizer="rmsprop" 指定优化器为 RMSprop（Root Mean Square Propagation），
+# RMSprop 是一种常用的优化算法，用于更新模型的权重以最小化损失函数。
+# loss="categorical_crossentropy" 选择分类交叉熵作为损失函数，
+# 适用于多分类问题，衡量模型预测的概率分布与真实标签之间的差异。
+# metrics=["accuracy"] 指定评估模型性能的指标为准确率（accuracy），
+# 即正确分类的样本数占总样本数的比例。
+
+[4]
+"""
+在把数据输入到网络模型之前，把数据做归一化处理：
+1.reshape(60000,28*28):train_images数组原来含有60000个元素，每个元素是一个28行，28列的二维数组，
+现在把每个二维数组转换成一个含有28*28个元素的一维数组。
+2.由于数字图案是一个灰度图，图片中的每个像素点值的大小范围在0~255之间。
+3.train_images.astype("float32")/255 把每个像素点的值从范围0-255转变为0-1之间的浮点值。
+"""
+train_images = train_images.reshape((60000, 28*28))
+train_images = train_images.astype("float32") / 255
+
+test_images = test_images.reshape((10000, 28*28))
+test_images = test_images.astype("float32") / 255
+
+"""
+把图片对呀的标记也做一个更改：
+目前所有图片的数字图案对呀的是0-9.
+例如test_images[0]对应的是数字7的手写团，那么其对应的标记test_labels[0]的值就是7.
+我们需要把数值7变成一个含有10个元素的数组，然后在第八个元素设置为1，其他元素设置为0.
+例如test_labels[0]的值由7转变成【0，0，0，0，0，0，0，1，0，0】 ---one bot
+"""
+from tensorflow.keras.utils import to_categorical
+
+# 从 TensorFlow 的 Keras 工具库中导入 to_categorical 函数，
+# 这个函数用于将类别标签转换为独热编码（one-hot encoding）形式。
+
+print("before change:", test_labels[0])
+# 打印出转换前测试标签集中的第一个标签值，用于对比转换前后的变化。
+
+train_labels = to_categorical(train_labels)
+test_labels = to_categorical(test_labels)
+# 使用 to_categorical 函数分别将训练标签集 train_labels 和测试标签集 test_labels
+# 转换为独热编码形式。对于多分类问题，独热编码将每个类别表示为一个向量，
+# 向量的长度等于类别总数，其中只有对应类别的位置为 1，其他位置为 0。
+
+print("after change: ", test_labels[0])
+# 打印出转换后测试标签集中的第一个标签值，以查看转换后的结果。
+
+[5]
+"""
+把数据输入网络进行训练：
+train_images: 用于训练的手写数字图片；
+train_labels: 对呀的是图片的标记；
+batch_size: 每次网络从输入的图片数组中随机选取128个作为一组进行计算。
+epochs: 每次计算的循环次数是5次
+"""
+network.fit(train_images, train_labels, epochs=5, batch_size=128)
+
+[6]
+"""
+测试数据输入，检验网络学习后的图片识别效果。
+识别效果和硬件有关（cpu/gpu）。
+"""
+test_loss, test_acc = network.evaluate(test_images, test_labels, verbose=1)
+# 使用训练好的网络模型 network 对测试图像数据 test_images 和对应的测试标签 test_labels 进行评估。
+# evaluate 方法返回测试集上的损失值（loss）和评估指标的值。这里评估指标是准确率（accuracy），由前面 network.compile 中指定。
+# verbose=1 表示在评估过程中显示进度条和日志信息。
+# 评估结果分别赋值给 test_loss 和 test_acc，test_loss 是损失值，test_acc 是准确率。
+
+print(test_loss)
+# 打印出测试集上的损失值。
+
+print("test_acc", test_acc)
+# 打印出“test_acc”字样以及测试集上的准确率值。
+
+[7]
+"""
+输入一张手写数字图片到网络中，看看他的识别效果
+"""
+(train_images, train_labels), (test_images, test_labels) = mnist.load_data()
+# 从 MNIST 数据集中加载训练图像数据 train_images 和对应的标签 train_labels，
+# 以及测试图像数据 test_images 和对应的标签 test_labels。
+
+digit = test_images[1]
+# 选取测试图像集中的第二张图像（索引为 1），赋值给变量 digit。
+
+plt.imshow(digit, cmap=plt.cm.binary)
+plt.show()
+# 使用 matplotlib 的 imshow 函数显示选取的测试图像，cmap=plt.cm.binary 指定使用二值化的颜色映射。
+# plt.show() 显示图像。
+
+test_images = test_images.reshape((10000, 28*28))
+# 将测试图像数据 reshape 为 (10000, 28*28) 的形状，即将每个测试图像从 28x28 的二维数组转换为长度为 28*28 的一维数组，
+# 以适应神经网络的输入要求。
+
+res = network.predict(test_images)
+# 使用训练好的网络模型 network 对测试图像数据进行预测，预测结果存储在 res 中。
+
+for i in range(res[1].shape[0]):
+# 遍历预测结果 res[1] 的每个元素。这里 res[1] 的含义不太明确，可能是预测结果中的某个特定部分，也许是一个错误的索引。
+# 通常情况下，对于分类问题，network.predict 的结果是一个二维数组，形状为 (样本数, 类别数)，
+# 可以直接遍历第一个维度来处理每个样本的预测结果。
+
+    if(res[1][i] == 1):
+    # 判断当前元素是否等于 1。
+
+        print("the number for the picture is : ",i)
+        # 如果等于 1，打印出对应的类别编号 i，表示预测的数字类别。
+
+        break
+# 一旦找到满足条件的元素，跳出循环。
