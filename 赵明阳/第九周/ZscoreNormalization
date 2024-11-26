@@ -1,0 +1,16 @@
+import numpy as np
+
+# 生成一些示例数据
+data = np.array([12, 25, 30, 18, 22, 28, 15, 20])
+
+# 计算均值和标准差
+mean = np.mean(data)
+std_dev = np.std(data)
+
+# 进行Z-Score标准化
+standardized_data = (data - mean) / std_dev
+
+print("原始数据:")
+print(data)
+print("标准化后的数据:")
+print(standardized_data)
