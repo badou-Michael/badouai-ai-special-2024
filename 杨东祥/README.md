@@ -21,4 +21,7 @@
   * 实现ransac
 * week08
   * 均值Hash、差值Hash
+* week09
+  * 实现标准化
+  * 使用keras实现简单神经网络
 
