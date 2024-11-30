@@ -1,0 +1,67 @@
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from tensorflow.keras.datasets import mnist
+from tensorflow.keras.utils import to_categorical
+import numpy as np
+from PIL import Image, ImageDraw, ImageFont
+
+# 加载MNIST数据集
+(train_images, train_labels), (test_images, test_labels) = mnist.load_data()
+
+# 数据预处理
+train_images = train_images.reshape((60000, 28, 28, 1)).astype('float32') / 255
+test_images = test_images.reshape((10000, 28, 28, 1)).astype('float32') / 255
+
+train_labels = to_categorical(train_labels)
+test_labels = to_categorical(test_labels)
+
+# 构建模型
+model = models.Sequential()
+model.add(layers.Conv2D(32, (3, 3), activation='relu', input_shape=(28, 28, 1)))
+model.add(layers.MaxPooling2D((2, 2)))
+model.add(layers.Conv2D(64, (3, 3), activation='relu'))
+model.add(layers.MaxPooling2D((2, 2)))
+model.add(layers.Conv2D(64, (3, 3), activation='relu'))
+
+model.add(layers.Flatten())
+model.add(layers.Dense(64, activation='relu'))
+model.add(layers.Dense(10, activation='softmax'))
+
+# 编译模型
+model.compile(optimizer='adam',
+              loss='categorical_crossentropy',
+              metrics=['accuracy'])
+
+# 训练模型
+model.fit(train_images, train_labels, epochs=5, batch_size=64)
+
+# 评估模型
+test_loss, test_acc = model.evaluate(test_images, test_labels)
+print(f'Test accuracy: {test_acc}')
+
+
+def create_test_image(digit):
+    # 创建一个空白的白色图片
+    image = Image.new('L', (28, 28), color=255)
+    draw = ImageDraw.Draw(image)
+
+    # 设置字体和大小
+    font = ImageFont.truetype("arial.ttf", 24)
+
+    # 在图片上绘制数字
+    text_width, text_height = draw.textsize(str(digit), font=font)
+    text_x = (28 - text_width) // 2
+    text_y = (28 - text_height) // 2
+    draw.text((text_x, text_y), str(digit), fill=0, font=font)
+
+    return image
+
+
+# 将图片转换为numpy数组并归一化
+test_image_array = np.array(create_test_image(7)).astype('float32') / 255.0
+test_image_array = test_image_array.reshape((1, 28, 28, 1))
+# 进行预测
+predictions = model.predict(test_image_array)
+predicted_digit = np.argmax(predictions)
+
+print(f"Predicted digit: {predicted_digit}")
