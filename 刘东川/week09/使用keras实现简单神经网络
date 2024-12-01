@@ -37,7 +37,7 @@ model.compile(optimizer='adam',
               metrics=['accuracy'])
 
 # 训练模型
-model.fit(train_images, train_labels, epochs=2, batch_size=64)
+model.fit(train_images, train_labels, epochs=5, batch_size=64)
 
 # 评估模型
 test_loss, test_acc = model.evaluate(test_images, test_labels)
