@@ -1,0 +1,89 @@
+# 标准化
+import numpy as np
+import matplotlib.pyplot as plt
+
+def Normalization(x):
+  return [(float(i)-min(x))/float(max(x)-min(x)) for i in x]
+
+def Normalization2(x):
+  return [(float(i)-np.mean(x))/float(max(x)-min(x)) for i in x]
+
+def z_score(x):
+  mean = np.mean(x)
+  sigma2 = sum([(i-mean)*(i-mean) for i in x])/len(x)
+  return [(i-mean)/sigma2 for i in x]
+
+l=[-10, 5, 5, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 8, 8, 9, 9, 9, 9, 9, 9, 10, 10, 10, 10, 10, 10, 10, 11, 11, 11, 11, 11, 11, 12, 12, 12, 12, 12, 13, 13, 13, 13, 14, 14, 14, 15, 15, 30]
+cs = []
+
+for i in l:
+  c = l.count(i)  #返回元素在列表中出现次数
+  cs.append(c)
+print(cs)
+
+n=Normalization2(l)
+z=z_score(l)
+print(n)
+print(z)
+
+plt.plot(l,cs)
+plt.plot(z,cs)
+plt.show()
+
+
+
+
+
+
+
+
+
+
+# Tensorflow深度学习框架
+# PyTorch: (batch_size, channels, height, width)
+# TensorFlow: (batch_size, height, width, channels)
+from tensorflow.keras.datasets import mnist
+(train_images,train_labels),(test_images,test_labels) = mnist.load_data()
+print('train_images.shape = ',train_images.shape)
+print('tran_labels = ', train_labels)
+print('test_images.shape = ', test_images.shape)
+print('test_labels', test_labels)
+
+import matplotlib.pyplot as plt
+digit = test_images[0]
+plt.imshow(digit, cmap=plt.cm.binary)
+plt.show()
+
+from tensorflow.keras import models
+from tensorflow.keras import layers
+
+net = models.Sequential()
+net.add(layers.Dense(512, activation='relu', input_shape=(28*28,)))
+net.add(layers.Dense(10, activation='softmax'))
+net.compile(optimizer='rmsprop', loss='categorical_crossentropy', metrics=['accuracy'])
+
+train_images = train_images.reshape((60000, 28*28))
+train_images = train_images.astype('float32') / 255
+test_images = test_images.reshape((10000, 28*28))
+test_images = test_images.astype('float32') / 255
+
+from tensorflow.keras.utils import to_categorical
+print("before change:" ,test_labels[0])
+train_labels = to_categorical(train_labels)
+test_labels = to_categorical(test_labels)
+print("after change: ", test_labels[0])
+
+net.fit(train_images, train_labels, epochs=5, batch_size=128)
+test_loss, test_acc = net.evaluate(test_images, test_labels, verbose=1)
+print('test_loss', test_loss) 
+print('test_acc', test_acc)
+
+(train_images, train_labels), (test_images, test_labels) = mnist.load_data()
+digit2 = test_images[1]
+plt.imshow(digit2, cmap=plt.cm.binary)
+plt.show()
+test_images = test_images.reshape((10000, 28*28))
+res = net.predict(test_images)
+# res.shape
+print("the number for the picture is : ", np.argmax(res[1]))
+
