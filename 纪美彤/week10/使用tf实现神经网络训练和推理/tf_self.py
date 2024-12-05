@@ -5,7 +5,9 @@
 # 4. 通过 变量 (Variable) 维护状态.
 # 5. 使用 feed 和 fetch 可以为任意的操作(arbitrary operation)赋值或者从其中获取数据。
 
-import tensorflow as tf
+# import tensorflow as tf
+import tensorflow.compat.v1 as tf
+tf.compat.v1.disable_eager_execution()
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -28,8 +30,8 @@ Wx_plus_b_L1 = tf.matmul(x,weights_L1) + bias_L1
 # 定义激活函数操作
 L1_output = tf.nn.tanh(Wx_plus_b_L1)
 
-weights_L2 = tf.Variable(tf.random_normal([1,10]))
-bias_L2 = tf.Variable(tf.zeros([1,10]))
+weights_L2 = tf.Variable(tf.random_normal([10,1]))
+bias_L2 = tf.Variable(tf.zeros([1,1]))
 # 定义加权和操作
 Wx_plus_b_L2 = tf.matmul(L1_output,weights_L2) + bias_L2
 # 定义激活函数操作
