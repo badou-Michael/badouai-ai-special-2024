@@ -1,0 +1,21 @@
+import numpy as np
+data = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]])
+
+# 计算均值和标准差
+mean = np.mean(data, axis=0)
+std_dev = np.std(data, axis=0)
+
+# 进行Z-score标准化
+standardized_data = (data - mean) / std_dev
+
+# 计算最大值和最小值
+min_val = np.min(data, axis=0)
+max_val = np.max(data, axis=0)
+
+# 进行Min-Max标准化
+normalized_data = (data - min_val) / (max_val - min_val)
+
+
+print("Normalized Data:"+str(normalized_data))
+
+print("Standardized Data:"+str(standardized_data))
