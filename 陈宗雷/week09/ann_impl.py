@@ -111,11 +111,9 @@ def construct_ann_by_keras():
     @return:
     """
     # 创建模型
-  
     model = models.Sequential()
 
     # 构建输入层，激活函数是relu
- 
     model.add(layers.Dense(512, activation='relu', input_shape=(28*28, )))
 
     # 构建输出层，激活函数是softmax
