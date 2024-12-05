@@ -6,7 +6,8 @@
 
 from math import exp
 import numpy as np
-import tensorflow as tf
+from tensorflow.keras import layers, models, datasets
+from tensorflow.keras.utils import to_categorical
 
 
 def sigmoid(x):
@@ -111,28 +112,28 @@ def construct_ann_by_keras():
     """
     # 创建模型
   
-    model = tf.keras.models.Sequential()
+    model = models.Sequential()
 
     # 构建输入层，激活函数是relu
  
-    model.add(tf.keras.layers.Dense(512, activation='relu', input_shape=(28*28, )))
+    model.add(layers.Dense(512, activation='relu', input_shape=(28*28, )))
 
     # 构建输出层，激活函数是softmax
-    model.add(tf.keras.layers.Dense(10, activation='softmax'))
+    model.add(layers.Dense(10, activation='softmax'))
 
     # 模型编译, 损失函数用交叉熵
     model.compile(loss='categorical_crossentropy', metrics=['accuracy'])
 
     # 加载数据
-    (x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
+    (x_train, y_train), (x_test, y_test) = datasets.mnist.load_data()
 
     # 转换为28*28, 归一化
     x_train = x_train.reshape((60000, 28*28)).astype('float32') / 255
     x_test = x_test.reshape((10000, 28*28)).astype('float32') / 255
 
     # 按分类标准转化为二进制矩阵，比如是3，只有第3个为1，其他都是0
-    y_train = tf.keras.utils.to_categorical(y_train)
-    y_test = tf.keras.utils.to_categorical(y_test)
+    y_train = to_categorical(y_train)
+    y_test = to_categorical(y_test)
 
     # 使用训练集训练模型
     model.fit(x_train, y_train, epochs=10, batch_size=128)
@@ -143,7 +144,7 @@ def construct_ann_by_keras():
     print(f"loss: {loss}, acc: {acc}")
 
     # 数据验证
-    _, (x_test, _) = tf.keras.datasets.mnist.load_data()
+    _, (x_test, _) = datasets.mnist.load_data()
     x_test = x_test.reshape((10000, 28*28))
     res = model.predict(x_test)
     print(res)
