@@ -54,7 +54,28 @@ a = warpMatrix(source, target)
 print(a)
 
 
+img = cv2.imread('photo1.jpg')
 
+src = np.float32(
+    [[206, 153], [518, 285], [16, 602], [343, 731]]
+)
+
+weight = np.linalg.norm(src[0] - src[1])
+high = np.linalg.norm(src[0] - src[2])
+
+tar = np.float32(
+    [[0, 0], [weight, 0], [0, high], [weight, high]]
+)
+
+war = cv2.getPerspectiveTransform(src, tar)
+print(war)
+
+result1 = cv2.warpPerspective(img, war, (img.shape[1], img.shape[0]))
+result2 = cv2.warpPerspective(img, war, (int(weight), int(high)))
+
+cv2.imshow('war', result1)
+cv2.imshow('war', result2)
+cv2.waitKey(0)
 
 
 
