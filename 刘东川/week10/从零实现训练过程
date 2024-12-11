@@ -1,0 +1,176 @@
+import numpy as np
+from tensorflow.keras.datasets import mnist  # 用来加载 MNIST 数据集
+
+# 激活函数及其导数（ReLU 激活函数及其导数）
+def relu(x):
+    return np.maximum(0, x)  # 对输入的每个元素应用 ReLU 函数
+
+def relu_derivative(x):
+    return (x > 0).astype(float)  # 返回 ReLU 的导数（对于大于0的值返回1，否则返回0）
+
+# softmax 激活函数（用于多分类任务的输出层）
+def softmax(x):
+    x = np.nan_to_num(x, nan=0.0, posinf=1e9, neginf=-1e9)  # 修复 NaN 和 Inf 值
+    exp_values = np.exp(x - np.max(x, axis=1, keepdims=True))  # 稳定化计算，避免溢出
+    return exp_values / np.sum(exp_values, axis=1, keepdims=True)  # 归一化，输出概率分布
+
+# 交叉熵损失函数（用于多分类任务）
+def cross_entropy_loss(y_true, y_pred):
+    return -np.mean(np.sum(y_true * np.log(y_pred + 1e-9), axis=1))  # 防止对数0出现，添加一个小值1e-9
+
+# Adam优化器函数（用于更新权重和偏置）
+def adam_optimizer(weights, biases, grad_w, grad_b, m_w, v_w, m_b, v_b, t, learning_rate=0.001):
+    beta1 = 0.9  # 一阶矩估计的衰减率
+    beta2 = 0.999  # 二阶矩估计的衰减率
+    epsilon = 1e-8  # 防止除零的一个小常数
+
+    # 更新一阶矩估计和二阶矩估计
+    m_w = beta1 * m_w + (1 - beta1) * grad_w
+    v_w = beta2 * v_w + (1 - beta2) * (grad_w ** 2)
+    m_b = beta1 * m_b + (1 - beta1) * grad_b
+    v_b = beta2 * v_b + (1 - beta2) * (grad_b ** 2)
+
+    # 计算偏差修正后的估计值
+    m_w_hat = m_w / (1 - beta1 ** t)
+    v_w_hat = v_w / (1 - beta2 ** t)
+    m_b_hat = m_b / (1 - beta1 ** t)
+    v_b_hat = v_b / (1 - beta2 ** t)
+
+    # 使用修正后的估计值更新权重和偏置
+    weights -= learning_rate * m_w_hat / (np.sqrt(v_w_hat) + epsilon)
+    biases -= learning_rate * m_b_hat / (np.sqrt(v_b_hat) + epsilon)
+
+    return weights, biases, m_w, v_w, m_b, v_b
+
+# BP神经网络类（支持多层隐藏层）
+class BPNeuralNetwork:
+    def __init__(self, layer_sizes, learning_rate=0.001):
+        # 初始化神经网络，layer_sizes是一个列表，包含每层神经元的个数
+        self.layer_sizes = layer_sizes
+        self.num_layers = len(layer_sizes)  # 网络层数
+
+        # 初始化权重和偏置
+        # 权重是从上一层到当前层的连接，大小为 (上一层节点数, 当前层节点数)
+        # 偏置是当前层的每个节点都有一个偏置项，大小为 (1, 当前层节点数)
+        self.weights = [np.random.randn(layer_sizes[i - 1], layer_sizes[i]) * 0.01 for i in range(1, self.num_layers)]
+        self.biases = [np.zeros((1, layer_sizes[i])) for i in range(1, self.num_layers)]
+
+        # 初始化 Adam 优化器的参数
+        self.m_w = [np.zeros_like(w) for w in self.weights]  # 一阶矩估计
+        self.v_w = [np.zeros_like(w) for w in self.weights]  # 二阶矩估计
+        self.m_b = [np.zeros_like(b) for b in self.biases]   # 偏置的一阶矩估计
+        self.v_b = [np.zeros_like(b) for b in self.biases]   # 偏置的二阶矩估计
+        self.t = 0  # 迭代次数
+
+
+    #前向传播
+    def forward(self, X):
+        self.activations = [X]  # 存储每层的激活值，初始化时是输入X
+        self.z_values = []  # 存储每层的加权和（Z值）
+
+        # 前向传播（除输出层外的隐藏层）
+        for i in range(self.num_layers - 2):
+            z = np.dot(self.activations[-1], self.weights[i]) + self.biases[i]  # 计算加权和
+            self.z_values.append(z)
+            activation = relu(z)  # 激活函数（ReLU）
+            self.activations.append(activation)  # 保存该层的激活值
+
+        # 输出层（softmax激活函数）
+        output_z = np.dot(self.activations[-1], self.weights[-1]) + self.biases[-1]
+        self.z_values.append(output_z)
+        output_activation = softmax(output_z)  # 输出层使用softmax
+        self.activations.append(output_activation)
+
+        return self.activations[-1]  # 返回输出层的预测值
+
+
+    #反向传播
+    def backward(self, X, y, batch_size, learning_rate=0.001):
+        # 计算误差并反向传播
+        output_error = self.activations[-1] - y  # 输出层误差
+        output_delta = output_error  # 输出层的delta
+
+        deltas = [output_delta]
+        for i in range(self.num_layers - 2, 0, -1):  # 从倒数第二层到输入层
+            error = deltas[-1].dot(self.weights[i].T)  # 误差传递到上一层
+            delta = error * relu_derivative(self.activations[i])  # 计算该层的delta
+            deltas.append(delta)
+
+        deltas.reverse()  # 反转deltas列表，使其按层次顺序排列
+
+        # 计算梯度
+        gradients_w = [np.dot(self.activations[i].T, deltas[i]) / batch_size for i in range(self.num_layers - 1)]
+        gradients_b = [np.sum(deltas[i], axis=0, keepdims=True) / batch_size for i in range(self.num_layers - 1)]
+
+        # 使用 Adam 优化器更新权重和偏置
+        self.t += 1
+        for i in range(self.num_layers - 1):
+            self.weights[i], self.biases[i], self.m_w[i], self.v_w[i], self.m_b[i], self.v_b[i] = adam_optimizer(
+                self.weights[i], self.biases[i], gradients_w[i], gradients_b[i], self.m_w[i], self.v_w[i], self.m_b[i],
+                self.v_b[i], self.t, learning_rate
+            )
+
+    def train(self, X_train, y_train, epochs, batch_size, learning_rate=0.001, early_stopping=True, patience=10):
+        best_loss = float('inf')
+        epochs_since_improvement = 0
+
+        # 训练过程
+        for epoch in range(epochs):
+            # 小批量梯度下降
+            for i in range(0, X_train.shape[0], batch_size):
+                X_batch = X_train[i:i + batch_size]
+                y_batch = y_train[i:i + batch_size]
+                self.forward(X_batch)  # 前向传播
+                self.backward(X_batch, y_batch, batch_size, learning_rate)  # 反向传播
+
+            # 计算当前批次的损失
+            loss = cross_entropy_loss(y_batch, self.activations[-1])
+
+            # 打印每个 epoch 的损失
+            print(f'Epoch {epoch + 1}/{epochs} - Loss: {loss}')
+
+            # 早停
+            if early_stopping:
+                if loss < best_loss:
+                    best_loss = loss
+                    epochs_since_improvement = 0
+                else:
+                    epochs_since_improvement += 1
+                    if epochs_since_improvement > patience:
+                        print("Early stopping triggered")
+                        break
+
+    def predict(self, X):
+        output = self.forward(X)  # 前向传播获得预测结果
+        # 打印每个样本的概率分布
+        print(f"预测概率分布: {output[0]}")
+        return np.argmax(output, axis=1)  # 返回每个样本的预测标签（类别）
+
+# 加载 MNIST 数据集
+(X_train, y_train), (X_test, y_test) = mnist.load_data()
+
+# 预处理数据：将图片展平为784维向量，并归一化到[0, 1]之间
+X_train = X_train.reshape(-1, 784) / 255.0
+X_test = X_test.reshape(-1, 784) / 255.0
+
+# 将标签进行 one-hot 编码（将每个数字标签转换为 10 维向量）
+y_train_one_hot = np.zeros((y_train.size, 10)) #训练标签
+y_test_one_hot = np.zeros((y_test.size, 10))  #推理标签
+for i, label in enumerate(y_train):
+    y_train_one_hot[i, label] = 1
+for i, label in enumerate(y_test):
+    y_test_one_hot[i, label] = 1
+
+# 初始化神经网络：输入层784个节点，两个隐藏层各64个节点，输出层10个节点（0-9）
+layer_sizes = [784, 64, 64, 10]
+nn = BPNeuralNetwork(layer_sizes)
+
+# 训练神经网络，使用小批量训练（batch_size=64），并启用早停
+nn.train(X_train, y_train_one_hot, epochs=50, batch_size=64, learning_rate=0.001)
+
+# 在测试集上进行预测并打印真实标签和预测结果
+print("\n预测结果：")
+for i in range(10):  # 打印前10个样本的预测结果
+    true_label = y_test[i]
+    predicted_label = nn.predict(X_test[i].reshape(1, 784))[0]
+    print(f"真实标签: {true_label}, 预测标签: {predicted_label}")
