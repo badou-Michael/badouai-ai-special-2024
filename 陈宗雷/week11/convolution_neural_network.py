@@ -8,7 +8,6 @@
 @Desc : 
 """
 import math
-from abc import abstractmethod
 from pathlib import Path
 from typing import List, Tuple
 
@@ -39,7 +38,6 @@ class BaseCNN:
         self.data_dir = DATA_DIR.joinpath(self.name)
         self.data_dir.mkdir(parents=True, exist_ok=True)
 
-    @abstractmethod
     def process_data(self):
         raise NotImplementedError
 
