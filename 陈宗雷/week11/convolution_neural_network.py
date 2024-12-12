@@ -5,7 +5,7 @@
 @IDE     ：PyCharm 
 @Author  ：chung rae
 @Date    ：2024/12/12 12:43 
-@Desc : 
+@Desc : cnn impl
 """
 import math
 from pathlib import Path
