@@ -1,0 +1,136 @@
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import torch.nn.functional as f
+import torchvision
+import torchvision.transforms as transforms
+
+class Model:
+    def __init__(self, net, cost, optimist):
+        self.net = net
+        self.cost = self.create_cost(cost)
+        self.optimizer = self.create_optimizer(optimist)
+        pass
+
+    def create_cost(self, cost):
+        support_cost = {
+            'CROSS_ENTROPY': nn.CrossEntropyLoss(),
+            'MSE': nn.MSELoss()
+        }
+        return support_cost[cost]
+
+    def create_optimizer(self, optimist, **rests):
+        support_optim = {
+            'SGD': optim.SGD(self.net.parameters(), lr=0.1, **rests),
+            'ADAM': optim.Adam(self.net.parameters(), lr=0.01, **rests),
+            'RMSP': optim.RMSprop(self.net.parameters(), lr=0.001, **rests)
+        }
+        return support_optim[optimist]
+
+    def train(self, train_loader, epoches=1):
+        for epoch in range(epoches):
+            running_loss = 0.0   # 累计损失，初始化为0
+            for i, data in enumerate(train_loader, 0):  # 遍历每个批次的索引,默认从0开始
+                inputs, labels = data   # 将data元组拆开为输入数据与标签（目标值）
+
+                self.optimizer.zero_grad()   # 确保每次迭代开始时梯度被重置为零，避免梯度累加导致的问题（pytorch默认累加）
+
+                outputs = self.net(inputs)  # 通过模型进行预测，获取输出
+                loss = self.cost(outputs, labels)   # 根据预测输出和真实标签计算损失
+                loss.backward()  # 计算损失相对于模型参数的梯度
+                self.optimizer.step()  # 使用优化器更新模型参数，以减小损失
+
+                running_loss += loss.item()
+                if i % 100 == 0:
+                    print('[epoch %d, %.2f%%] loss: %3f' %
+                          (epoch + 1, (i+1)*1./len(train_loader),
+                           running_loss/100))
+                    running_loss = 0.0
+        print('Finished Training')
+        print('...' * 50)
+
+    def evaluate(self, test_loader):
+        print('Evaluating ...')
+        correct = 0
+        total = 0
+        with torch.no_grad():
+            for data in test_loader:
+                images, labels = data
+
+                outputs = self.net(images)
+                predicted = torch.argmax(outputs, 1)
+                total += labels.size(0)
+                correct += (predicted == labels).sum().item()
+        print('Accuracy of the network on the test images: %d %%' %
+              (100*correct/total))
+
+
+# 处理训练数据集
+def mnist_load_data():
+    transform = transforms.Compose(
+        [transforms.ToTensor(),
+         transforms.Normalize([0, ], [1, ])])
+
+    train_set = torchvision.datasets.MNIST(root='./data', train=True, download=True, transform=transform)
+    train_loader = torch.utils.data.DataLoader(train_set, batch_size=32, shuffle=True, num_workers=2)
+
+    test_set = torchvision.datasets.MNIST(root='./data', train=False, download=True, transform=transform)
+    test_loader = torch.utils.data.DataLoader(test_set, batch_size=32, shuffle=True, num_workers=2)
+
+    return train_loader, test_loader
+
+
+class MnistNet(torch.nn.Module):
+    def __init__(self):
+        super(MnistNet, self).__init__()   # 初始化
+        self.fc1 = torch.nn.Linear(28*28, 512)
+        self.fc2 = torch.nn.Linear(512, 512)
+        self.fc3 = torch.nn.Linear(512, 10)
+
+    def forward(self, x):
+        x = x.view(-1, 28*28)  # -1：自动推断batch_size的大小
+        x = f.relu(self.fc1(x))
+        x = f.relu(self.fc2(x))
+        x = f.softmax(self.fc3(x), dim=1)  # dim=1 表示沿类别维度进行归一化
+        return x
+
+
+if __name__ == '__main__':
+    net = MnistNet()
+    model = Model(net, 'CROSS_ENTROPY', 'RMSP')
+    train_loader, test_loader = mnist_load_data()
+    model.train(train_loader)
+    model.evaluate(test_loader)
+
+
+# 手写数字识别
+from PIL import Image
+
+# 定义与训练时相同的图像预处理转换
+transform = transforms.Compose([
+    transforms.Grayscale(num_output_channels=1),  # 确保是单通道灰度图像
+    transforms.Resize((28, 28)),                  # 调整大小到 28x28
+    transforms.ToTensor(),                        # 转换为张量
+    transforms.Normalize([0, ], [1, ])
+])
+
+def preprocess_image(image_path):
+    # 加载图像并应用转换
+    image = Image.open(image_path)
+    image_tensor = transform(image).unsqueeze(0)  # 添加批次维度 [1, C, H, W]
+    return image_tensor
+
+def predict(model, image_tensor):
+    model.net.eval()  # 设置模型为评估模式
+    with torch.no_grad():
+        outputs = model.net(image_tensor)
+        predicted = torch.argmax(outputs, 1)
+        return predicted.item()
+
+if __name__ == '__main__':
+    image_path = 'dataset/my_own_noisy_6.png'
+    image_tensor = preprocess_image(image_path)
+
+    prediction = predict(model, image_tensor)
+    print('The predicted digit is:', prediction)
+
