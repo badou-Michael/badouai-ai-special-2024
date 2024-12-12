@@ -354,6 +354,8 @@ class AlexNetwork(BaseCNN):
 
 
 class VGG16Network(BaseCNN):
+    name = "vgg16"
+
     def __init__(
             self,
             outputs: int = 1000,
