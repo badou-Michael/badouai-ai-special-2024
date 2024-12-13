@@ -80,4 +80,4 @@ if __name__ == "__main__":
                         epochs=100, initial_epoch=0, callbacks=[checkpoint_period1, reduce_lr, early_stopping])
 
     # 保存训练好的模型
-    model.save_weights(log_dir+'Alexnetlast')
+    model.save_weights(log_dir+'AlexNetLastModel.h5')
