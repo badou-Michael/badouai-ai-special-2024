@@ -1,7 +1,7 @@
 from keras.callbacks import TensorBoard, ModelCheckpoint, ReduceLROnPlateau, EarlyStopping
 from keras.utils import np_utils
 from keras.optimizers import Adam
-from model.AlexNet import AlexNet
+import AlexNet
 import numpy as np
 import utils
 import cv2
