@@ -13,5 +13,15 @@
   * 实现pca
 * week05
   * 实现canny（尽量用手写实现）
-
+* week06
+  * 实现透视变化
+  * 实现kmeans
+* week07
+  * 实现层次聚类
+  * 实现ransac
+* week08
+  * 均值Hash、差值Hash
+* week09
+  * 实现标准化
+  * 使用keras实现简单神经网络
 
