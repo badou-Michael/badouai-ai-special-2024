@@ -11,7 +11,8 @@ def load_image(path):
     # 将图片修剪成中心的正方形
     short_edge = min(img.shape[:2])
     yy = int((img.shape[0] - short_edge) / 2)
-    xx = int((img.shape[1] - short_edge) / 2) #裁剪图像为正方形
+    xx = int((img.shape[1] - short_edge) / 2)
+    crop_img = img[yy: yy + short_edge, xx: xx + short_edge]
     return crop_img
 
 # 图像数据扁平化
