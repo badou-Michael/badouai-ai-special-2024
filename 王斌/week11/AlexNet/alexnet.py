@@ -6,9 +6,9 @@ def AlexNet(input_shape=(224,224,3),output_shape=2):
     model = Sequential();
     model.add(
         Conv2D(
-            filter=48,
+            filters=48,
             kernel_size=(11,11),
-            stride=(4,4),
+            strides=(4,4),
             padding='valid',
             input_shape=input_shape,
             activation='relu'
