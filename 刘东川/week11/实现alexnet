@@ -1,0 +1,95 @@
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from tensorflow.keras.datasets import cifar10
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.callbacks import ModelCheckpoint
+import numpy as np
+import matplotlib.pyplot as plt
+import cv2
+
+# 定义 AlexNet 模型
+def build_alexnet(input_shape=(32, 32, 3), num_classes=10):
+    model = models.Sequential([
+        layers.Conv2D(96, kernel_size=(11, 11), strides=(4, 4), padding='valid', input_shape=input_shape),
+        layers.Activation('relu'),
+        layers.MaxPooling2D(pool_size=(3, 3), strides=(2, 2), padding='valid'),
+
+        layers.Conv2D(256, kernel_size=(5, 5), padding='same'),
+        layers.Activation('relu'),
+        layers.MaxPooling2D(pool_size=(3, 3), strides=(2, 2), padding='valid'),
+
+        layers.Conv2D(384, kernel_size=(3, 3), padding='same'),
+        layers.Activation('relu'),
+
+        layers.Conv2D(384, kernel_size=(3, 3), padding='same'),
+        layers.Activation('relu'),
+
+        layers.Conv2D(256, kernel_size=(3, 3), padding='same'),
+        layers.Activation('relu'),
+        layers.MaxPooling2D(pool_size=(3, 3), strides=(2, 2), padding='valid'),
+
+        layers.Flatten(),
+        layers.Dense(4096),
+        layers.Activation('relu'),
+        layers.Dropout(0.5),
+
+        layers.Dense(4096),
+        layers.Activation('relu'),
+        layers.Dropout(0.5),
+
+        layers.Dense(num_classes),
+        layers.Activation('softmax')
+    ])
+    return model
+
+# 加载 CIFAR-10 数据集
+(x_train, y_train), (x_test, y_test) = cifar10.load_data()
+
+# 数据预处理：将数据标准化到 [0, 1] 范围
+x_train = x_train.astype('float32') / 255.0
+x_test = x_test.astype('float32') / 255.0
+
+# 将标签转换为 one-hot 编码
+y_train = tf.keras.utils.to_categorical(y_train, 10)
+y_test = tf.keras.utils.to_categorical(y_test, 10)
+
+# 构建并编译模型
+model = build_alexnet(input_shape=(32, 32, 3), num_classes=10)
+model.compile(optimizer=Adam(learning_rate=0.0001), loss='categorical_crossentropy', metrics=['accuracy'])
+
+# 定义保存最佳模型的回调
+checkpoint = ModelCheckpoint('alexnet_best_model.h5', monitor='val_accuracy', save_best_only=True, mode='max')
+
+# 训练模型
+history = model.fit(x_train, y_train, batch_size=128, epochs=50, validation_data=(x_test, y_test), callbacks=[checkpoint])
+
+# 保存整个模型
+model.save('alexnet_final_model.h5')
+
+# 加载训练好的模型进行推理
+def load_and_predict(model_path, x_test, y_test):
+    # 加载模型
+    model = tf.keras.models.load_model(model_path)
+    
+    # 从 CIFAR-10 测试集中随机选择一张图像
+    index = np.random.randint(0, len(x_test))  # 随机选择一个图像的索引
+    img = x_test[index]  # 获取对应的图像
+    label = y_test[index]  # 获取图像的真实标签
+    
+    # 显示图像
+    plt.imshow(img)
+    plt.title(f"真实标签: {np.argmax(label)}")
+    plt.show()
+
+    # 对图像进行推理：由于模型期望的是 (batch_size, height, width, channels) 形状
+    img = np.expand_dims(img, axis=0)  # 将图像形状从 (32, 32, 3) 扩展为 (1, 32, 32, 3)
+
+    # 进行预测
+    predictions = model.predict(img)
+
+    # 输出预测类别
+    predicted_class = np.argmax(predictions)  # 获取预测的类别（索引）
+    print("预测类别:", predicted_class)
+    print("真实类别:", np.argmax(label))
+
+load_and_predict('alexnet_best_model.h5', x_test, y_test)
