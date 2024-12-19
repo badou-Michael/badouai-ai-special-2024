@@ -15,7 +15,7 @@ def conv2d_bn(input_x, filters, strides=(1, 1), padding='same', name=None):
     bn_name = name if name is None else f'{name}_bn'
 
     x = Conv2D(filters, (3, 3), strides=strides, padding=padding, use_bias=False, name=conv_name)(input_x)
-    x = BatchNormalization(scale=False, name=bn_name)(x)
+    x = BatchNormalization(name=bn_name)(x)
     x = Activation(relu6, name=name)(x)
     return x
 def conv_dw(input_x, filters, strides=(1, 1),name=None):
@@ -24,11 +24,11 @@ def conv_dw(input_x, filters, strides=(1, 1),name=None):
     act_name = name if name is None else f'{name}_act_dw'
 
     x = DepthwiseConv2D((3, 3),strides=strides, padding='same',depth_multiplier=1,use_bias=False, name=f'{conv_name}_1')(input_x)
-    x = BatchNormalization(scale=False, name=f'{bn_name}_1')(x)
+    x = BatchNormalization(name=f'{bn_name}_1')(x)
     x = Activation(relu6, name=f'{act_name}_1')(x)
 
     x = Conv2D(filters, (1, 1), strides=(1,1), padding='same', use_bias=False, name=f'{conv_name}_2')(x)
-    x = BatchNormalization(scale=False, name=f'{bn_name}_2')(x)
+    x = BatchNormalization(name=f'{bn_name}_2')(x)
     x = Activation(relu6, name=f'{act_name}_2')(x)
     return x
 
@@ -53,7 +53,6 @@ def mobile_net(input_shape=[224, 224, 3]):
     x = Reshape((1,1,1024), name='reshape_1')(x)
     x = Dropout(1e-3, name='dropout_1')(x)
     x = Conv2D(1000, (1,1), padding='same', name='conv_preds')(x)
-    x = Dense(1000, activation='softmax')(x)
     x = Activation('softmax', name='acc_softmax')(x)
     x = Reshape((1000,), name='reshape_2')(x)
 
