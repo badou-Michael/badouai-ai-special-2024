@@ -1,0 +1,250 @@
+from keras.callbacks import ModelCheckpoint, ReduceLROnPlateau, EarlyStopping
+import cv2
+from keras import backend as K
+import matplotlib.image as mpimg
+import numpy as np
+import tensorflow as tf
+from keras.models import Sequential
+from keras.layers import Dense,Conv2D, MaxPooling2D, Flatten, Dropout, BatchNormalization
+from keras.utils import np_utils
+from keras.optimizers import Adam
+
+
+# K.set_image_dim_ordering('tf')  #  (batch, height, width, channels)
+K.image_data_format() == 'channels_first'  # 获取当前的数据格式(batch, channels, height, width)
+
+
+def load_image(path):
+    # 读取图片，rgb
+    img = mpimg.imread(path)
+    # 将图片修剪成中心的正方形
+    short_edge = min(img.shape[:2])
+    yy = int((img.shape[0] - short_edge) / 2)
+    xx = int((img.shape[1] - short_edge) / 2)
+    crop_img = img[yy: yy + short_edge, xx: xx + short_edge]
+    return crop_img
+
+
+def resize_image(image, size,
+                 method=tf.image.ResizeMethod.BILINEAR,
+                 align_corners=False):
+    with tf.name_scope('resize_image'):
+        image = tf.expand_dims(image, 0)
+        image = tf.image.resize_images(image, size,
+                                       method, align_corners)
+        image = tf.reshape(image, tf.stack([-1,size[0], size[1], 3]))
+        return image
+
+
+def print_prob(prob, file_path):
+    synset = [l.strip() for l in open(file_path).readlines()]
+    # 将概率从大到小排列的结果的序号存入pred
+    pred = np.argsort(prob)[::-1]
+    # 取最大的1个、5个。
+    top1 = synset[pred[0]]
+    print(("Top1: ", top1, prob[pred[0]]))
+    top5 = [(synset[pred[i]], prob[pred[i]]) for i in range(5)]
+    print(("Top5: ", top5))
+    return top1
+
+
+
+# 创建一个无限循环的生成器，它会持续不断地从给定的 lines 中读取数据，并以指定的 batch_size 返回一批数据
+def generate_arrays_from_file(lines, batch_size):
+    n = len(lines)
+    i = 0
+    while 1:  # 表示无限循环
+        X_train = []  # 储存一批次的图像数据
+        Y_train = []  # 储存一批次的标签数据
+        for b in range(batch_size):  # 用一个for循环读取batch_size数量的行数据
+            if i == 0:
+                np.random.shuffle(lines)  # 打乱lines列表中的顺序
+            name = lines[i].split(';')[0]  # 分割每一行，提取出文件名
+            # 从文件中读取图像
+            img = cv2.imread(r".\data\image\train" + '/' + name)  # 根据文件名读取图像文件
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            img = img / 255
+            X_train.append(img)
+            Y_train.append(lines[i].split(';')[1])  # 获取第i行，第2个元素，加入栈y
+            # 读完一个周期后重新开始
+            i = (i + 1) % n
+        # 处理图像
+        X_train = resize_image(X_train, (224, 224))
+        X_train = X_train.reshape(-1, 224, 224, 3)  # 重塑数组形状，-1为batch_size
+        Y_train = np_utils.to_categorical(np.array(Y_train), num_classes=2)  # 包含标签的列表转换成one_hot编码矩阵
+        yield (X_train, Y_train)
+
+
+
+
+
+def AlexNet(input_shape=(224, 224, 3), output_shape=2):
+
+    model = Sequential()
+    model.add(
+        Conv2D(
+            filters=48,
+            kernel_size=(11, 11),
+            strides=(4, 4),
+            padding='valid',
+            input_shape=input_shape,
+            activation='relu'
+        )
+    )
+
+    model.add(BatchNormalization())
+    model.add(
+        MaxPooling2D(
+            pool_size=(3, 3),
+            strides=(2, 2),
+            padding='valid'
+        )
+    )
+
+    model.add(
+        Conv2D(
+            filters=128,
+            kernel_size=(5, 5),
+            strides=(1, 1),
+            padding='same',
+            activation='relu'
+        )
+    )
+
+    model.add(BatchNormalization())
+
+    model.add(
+        MaxPooling2D(
+            pool_size=(3, 3),
+            strides=(2, 2),
+            padding='valid'
+        )
+    )
+
+    model.add(
+        Conv2D(
+            filters=192,
+            kernel_size=(3, 3),
+            strides=(1, 1),
+            padding='same',
+            activation='relu'
+        )
+    )
+
+    model.add(
+        Conv2D(
+            filters=192,
+            kernel_size=(3, 3),
+            strides=(1, 1),
+            padding='same',
+            activation='relu'
+        )
+    )
+
+    model.add(
+        Conv2D(
+            filters=128,
+            kernel_size=(3, 3),
+            strides=(1, 1),
+            padding='same',
+            activation='relu'
+        )
+    )
+
+    model.add(
+        MaxPooling2D(
+            pool_size=(3, 3),
+            strides=(2, 2),
+            padding='valid'
+        )
+    )
+
+    model.add(Flatten())  # 拍平数据 -> 多维转一维
+    model.add(Dense(1024, activation='relu'))
+    model.add(Dropout(0.25))
+
+    model.add(Dense(1024, activation='relu'))
+    model.add(Dropout(0.25))
+
+    model.add(Dense(output_shape, activation='softmax'))
+
+    return model
+
+
+
+
+if __name__ == "__main__":
+    # 模型保存的位置，logs用于保存训练过程中的各种信息，如性能指标、模型权重、TensorBoard 日志等
+    log_dir = "./logs/"  # .表示当前目录；/logs/表示在当前目录下创建或打开一个名为logs的子目录
+
+    # 打开数据集的txt
+    with open(r".\data\dataset.txt", "r") as f:
+        lines = f.readlines()
+
+    # 打乱行，这个txt主要用于帮助读取数据来训练
+    # 打乱的数据更有利于训练
+    np.random.seed(10101)  # 设置随机数生成器的种子，确保操作的可重复性
+    np.random.shuffle(lines)
+    np.random.seed(None)  # 关闭种子，只在打乱数据保持随机操作的可重复性
+
+    num_val = int(len(lines) * 0.1)
+    num_train = len(lines) - num_val
+
+    # 建立AlexNet模型
+    model = AlexNet()
+
+    # 保存的方式，3代保存一次
+    checkpoint_period1 = ModelCheckpoint(
+        log_dir + 'ep{epoch:03d}-loss{loss:.3f}-val_loss{val_loss:.3f}.h5',
+        monitor='acc',  # 监控指标
+        save_weights_only=False,  # False表示保存整个模型
+        save_best_only=True,  # 监控指标有所改善时才保存模型
+        period=3  # 每3个epoch保存一次模型
+    )
+    # 学习率下降的方式，acc三次不下降就下降学习率继续训练
+    reduce_lr = ReduceLROnPlateau(
+        monitor='acc',
+        factor=0.5,  # 每次减少lr的缩放因子
+        patience=3,  # 在3个epoch内没有看到监控指标的改进触发lr的减少
+        verbose=1  # 输出更新信息
+    )
+    # 是否需要早停，当val_loss一直不下降的时候意味着模型基本训练完毕，可以停止
+    early_stopping = EarlyStopping(
+        monitor='val_loss',
+        min_delta=0,  # 最小变化量（阈值），即性能提升至少需要达到这个值才被认为是有效的改进。设置为 0 表示任何正向的变化都会被考虑为改进
+        patience=10,  # 在10个 epoch 内没有看到性能改进后触发提前终止
+        verbose=1  # 输出更新信息
+    )
+
+    # 交叉熵
+    model.compile(loss='categorical_crossentropy',
+                  optimizer=Adam(lr=1e-3),
+                  metrics=['accuracy'])
+
+    # 一次的训练集大小
+    batch_size = 128
+
+    print('Train on {} samples, val on {} samples, with batch size {}.'.format(num_train, num_val, batch_size))
+
+    # 开始训练
+    model.fit_generator(generate_arrays_from_file(lines[:num_train], batch_size),
+                        steps_per_epoch=max(1, num_train // batch_size),  # 指定每个 epoch 中要执行的步骤数，最少为1次
+                        validation_data=generate_arrays_from_file(lines[num_train:], batch_size),
+                        validation_steps=max(1, num_val // batch_size),
+                        epochs=50,
+                        initial_epoch=0,
+                        callbacks=[checkpoint_period1, reduce_lr])  # 指定一系列回调函数，在训练的不同阶段触发特定操作
+    model.save_weights(log_dir + 'last1.h5')  # 将模型的权重保存到指定路径下
+    model.save(log_dir + 'model.h5')  # 将模型保存到指定路径下
+
+    # 推理
+    model = AlexNet()
+    model.load_weights("./logs/last1.h5")
+    img = cv2.imread("./test2.jpg")
+    img_RGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    img_nor = img_RGB/255
+    img_nor = np.expand_dims(img_nor, axis=0)  # 在最前面增加一个新的轴（即增加一个维度）
+    img_resize = resize_image(img_nor, (224, 224))
+    print('the answer is: ', print_prob(np.argmax(model.predict(img_resize))))
+    cv2.imshow("111", img)
+    cv2.waitKey(0)
