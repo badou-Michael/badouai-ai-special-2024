@@ -14,6 +14,7 @@ from keras.utils.data_utils import get_file
 from keras import backend as K
 from keras.applications.imagenet_utils import decode_predictions
 from keras.preprocessing import image
+from keras.applications.imagenet_utils import preprocess_input
 
 
 def conv2d_bn(input_x, filters, kernel_size, strides=(1, 1), padding='same', name=None):
@@ -84,10 +85,10 @@ def InceptionV3(input_shape=[299, 299, 3]):
     inception_c_7x7 = conv2d_bn(inception_c_7x7, 192, (7, 1))
 
     inception_c_7x7_2 = conv2d_bn(x, 128, (1, 1))
-    inception_c_7x7_2 = conv2d_bn(inception_c_7x7_2, 128, (1, 7))
     inception_c_7x7_2 = conv2d_bn(inception_c_7x7_2, 128, (7, 1))
     inception_c_7x7_2 = conv2d_bn(inception_c_7x7_2, 128, (1, 7))
-    inception_c_7x7_2 = conv2d_bn(inception_c_7x7_2, 192, (7, 1))
+    inception_c_7x7_2 = conv2d_bn(inception_c_7x7_2, 128, (7, 1))
+    inception_c_7x7_2 = conv2d_bn(inception_c_7x7_2, 192, (1, 7))
 
     inception_c_pooling = AveragePooling2D((3, 3), strides=(1, 1), padding='same')(x)
     inception_c_pooling = conv2d_bn(inception_c_pooling, 192, (1, 1))
@@ -106,10 +107,10 @@ def InceptionV3(input_shape=[299, 299, 3]):
         inception_d_7x7 = conv2d_bn(inception_d_7x7, 192, (7, 1))
 
         inception_d_7x7_3 = conv2d_bn(x, 160, (1, 1))
-        inception_d_7x7_3 = conv2d_bn(inception_d_7x7_3, 160, (1, 7))
         inception_d_7x7_3 = conv2d_bn(inception_d_7x7_3, 160, (7, 1))
         inception_d_7x7_3 = conv2d_bn(inception_d_7x7_3, 160, (1, 7))
-        inception_d_7x7_3 = conv2d_bn(inception_d_7x7_3, 192, (7, 1))
+        inception_d_7x7_3 = conv2d_bn(inception_d_7x7_3, 160, (7, 1))
+        inception_d_7x7_3 = conv2d_bn(inception_d_7x7_3, 192, (1, 7))
 
         inception_d_pooling = AveragePooling2D((3, 3), strides=(1, 1), padding='same')(x)
         inception_d_pooling = conv2d_bn(inception_d_pooling, 192, (1, 1))
@@ -127,10 +128,10 @@ def InceptionV3(input_shape=[299, 299, 3]):
     inception_e_7x7 = conv2d_bn(inception_e_7x7, 192, (7, 1))
 
     inception_e_7x7_3 = conv2d_bn(x, 192, (1, 1))
-    inception_e_7x7_3 = conv2d_bn(inception_e_7x7_3, 192, (1, 7))
     inception_e_7x7_3 = conv2d_bn(inception_e_7x7_3, 192, (7, 1))
     inception_e_7x7_3 = conv2d_bn(inception_e_7x7_3, 192, (1, 7))
     inception_e_7x7_3 = conv2d_bn(inception_e_7x7_3, 192, (7, 1))
+    inception_e_7x7_3 = conv2d_bn(inception_e_7x7_3, 192, (1, 7))
 
     inception_e_pooling = AveragePooling2D((3, 3), strides=(1, 1), padding='same')(x)
     inception_e_pooling = conv2d_bn(inception_e_pooling, 192, (1, 1))
@@ -175,16 +176,10 @@ def InceptionV3(input_shape=[299, 299, 3]):
 
         x = layers.concatenate([inception_g_1x1, inception_g_3x3, inception_g_3x3d, inception_g_pooling], axis=3)
 
-    x = AveragePooling2D()(x)
+    x = GlobalAveragePooling2D()(x)
     x = Dense(1000, activation='softmax')(x)
 
     return Model(img_input, x)
-
-def preprocess_input(x):
-    x /= 255.
-    x -= 0.5
-    x *= 2.
-    return x
 
 if __name__ == '__main__':
     model = InceptionV3()
