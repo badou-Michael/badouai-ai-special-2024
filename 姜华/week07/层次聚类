@@ -1,0 +1,35 @@
+from scipy.cluster.hierarchy import dendrogram, linkage,fcluster
+from matplotlib import pyplot as plt
+
+'''
+linkage(y, method=’single’, metric=’euclidean’) 共包含3个参数: 
+1. y是距离矩阵,可以是1维压缩向量（距离向量），也可以是2维观测向量（坐标矩阵）。
+若y是1维压缩向量，则y必须是n个初始观测值的组合，n是坐标矩阵中成对的观测值。及样本数据
+2. method是指计算类间距离的方法。
+    'single'：最短距离法（single linkage）
+    'complete'：最长距离法（complete linkage）
+    'average'：平均距离法（average linkage）
+    'ward'：离差平方和法（Ward method）
+3. 返回参数
+    返回值Z为 (n-1) * 4的矩阵，n为样本数，每行第1,2为被合并的两个cluster的序号，3为两个cluster之间的距离，4为合并后新的cluster包含样本的个数
+
+'''
+'''
+fcluster(Z, t, criterion=’inconsistent’, depth=2, R=None, monocrit=None) 
+1.第一个参数Z是linkage得到的矩阵,记录了层次聚类的层次信息; 
+2.t是一个聚类的阈值-“The threshold to apply when forming flat clusters”。
+3. 返回值：返回一个以为数据，记录每个数据对应的类别信息
+'''
+'''
+dendrogram: 一个绘制树状图形的函数
+'''
+
+X = [[1,2],[3,2],[4,4],[1,2],[1,3]]
+Z = linkage(X, 'ward')
+print(Z)
+f = fcluster(Z,1,'distance')
+print(f)
+fig = plt.figure(figsize=(5, 3))
+dendrogram(Z)
+print(Z)
+plt.show()
