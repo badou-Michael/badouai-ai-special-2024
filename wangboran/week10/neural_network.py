@@ -22,12 +22,12 @@ class NeuralNetwork:
         targets = np.array(targets_list, ndmin=2).T
 
         # 1.1 计算中间层从输入层接收到的信号量
-        hidden_inputs = np.dot(self.wih, inputs)  # [hide,input] 
+        hidden_inputs = np.dot(self.wih, inputs)  # [hide,input] * [input,1] = [hide, 1]
         # 1.2 计算中间层经过激活函数后形成的输出信号量
         hidden_outputs = self.activation_function(hidden_inputs)
 
         # 2.1 计算最外层接收到的信号量
-        final_inputs = np.dot(self.who, hidden_outputs)
+        final_inputs = np.dot(self.who, hidden_outputs) # [out, hide] * [hide, 1] = [out, 1]
         # 2.2 计算最外层经过激活函数后的信号量
         final_outputs = self.activation_function(final_inputs)
 
