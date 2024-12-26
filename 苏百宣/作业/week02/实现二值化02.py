@@ -1,0 +1,20 @@
+# 实现二值化02
+# author：苏百宣
+import cv2
+import matplotlib.pyplot as plt
+import numpy as np
+
+#读取图像并转换为灰度图像
+img = cv2.imread('lenna.png')
+img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) / 255.0
+# 使用 np.where() 进行二值化处理
+img_binary = np.where(img_gray > 0.5, 1, 0)
+# 打印二值化后的图像矩阵
+print("---Binary Image Matrix---")
+print(img_binary)
+# 打印二值化后的图像形状
+print(img_binary.shape)
+#显示二值化后的图像
+plt.imshow(img_binary, cmap='gray')
+plt.title('Binary Image')
+plt.show()
