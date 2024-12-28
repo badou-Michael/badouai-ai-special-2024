@@ -1,0 +1,23 @@
+import numpy as np
+import cv2
+from matplotlib import pyplot as plt
+
+'''
+equalizeHist—直方图均衡化
+函数原型： equalizeHist(src, dst=None)
+src：图像矩阵(单通道图像)
+dst：默认即可
+'''
+
+if __name__ == '__main__':
+    img = cv2.imread('lenna.png')
+    gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+
+    hist_equal = cv2.equalizeHist(gray)
+
+    plt.subplot(121)
+    plt.hist(hist_equal.ravel(),256)
+
+    plt.subplot(122)
+    plt.hist(gray.ravel(),256)
+    plt.show()

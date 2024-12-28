@@ -1,0 +1,263 @@
+####### 手搓神经网络
+import scipy.special
+import numpy as np
+
+class NN:
+  def __init__(self, input, hidden, output, lr):
+    self.input = input
+    self.hidden = hidden
+    self.output = output
+    self.lr = lr
+    # self.Wih = np.random.rand(self.hidden, self.input) - 0.5
+    # self.Who = np.random.rand(self.output, self.hidden) - 0.5
+    self.Wih = (np.random.normal(0.0, pow(self.hidden, -0.5), (self.hidden, self.input)))
+    self.Who = (np.random.normal(0.0, pow(self.output, -0.5), (self.output, self.hidden)))
+    self.activation_func = lambda x: scipy.special.expit(x) # scipy.special.expit对应sigmod()
+
+  def train(self, input_list, output_list):
+    input = np.array(input_list, ndmin=2).T
+    output = np.array(output_list, ndmin=2).T
+    input_hidden = np.dot(self.Wih, input)
+    hidden_act = self.activation_func(input_hidden)
+    hidden_output = np.dot(self.Who, hidden_act)
+    output_act = self.activation_func(hidden_output)
+    err = output - output_act
+    hidden_err = np.dot(self.Who.T, err*output_act*(1-output_act))
+    self.Who += self.lr * np.dot((err*output_act*(1-output_act)), np.transpose(hidden_act))
+    self.Wih += self.lr * np.dot((hidden_err*hidden_act*(1-hidden_act)), np.transpose(input))
+
+  
+  def evaluate(self, inputs):
+    input_hidden = np.dot(self.Wih, inputs)
+    hidden_act = self.activation_func(input_hidden)
+    hidden_output = np.dot(self.Who, hidden_act)
+    output_act = self.activation_func(hidden_output)
+    return output_act
+
+if __name__ == '__main__':
+  input = 784
+  hidden = 200
+  output = 10
+  lr = 0.1
+  n = NN(input, hidden, output, lr)
+  
+  training_data_file = open('/content/drive/MyDrive/dataset/mnist_train.csv', 'r')
+  training_data_list = training_data_file.readlines()
+  training_data_file.close()
+
+  epochs = 5
+  for i in range(epochs):
+    for j in training_data_list:
+      all_values = j.split(',')
+      input_value = (np.asfarray(all_values[1:]))/255 * 0.99 + 0.01
+      output_value = np.zeros(output) + 0.01
+      output_value[int(all_values[0])] = 0.99
+      n.train(input_value, output_value)
+  
+  test_data_file = open('/content/drive/MyDrive/dataset/mnist_test.csv')
+  test_data_list = test_data_file.readlines()
+  test_data_file.close()
+  scores = []
+  for i in test_data_list:
+    all_values = i.split(',')
+    correct_number = int(all_values[0])
+    print("该图片对应的数字为:",correct_number)
+    input_value = (np.asfarray(all_values[1:])) / 255.0 * 0.99 + 0.01
+    output = n.evaluate(input_value)
+    label = np.argmax(output)
+    print("网络认为图片的数字是：", label)
+    if label == correct_number:
+        scores.append(1)
+    else:
+        scores.append(0)
+
+  print(scores)
+  scores_array = np.asarray(scores)
+  print("perfermance = ", scores_array.sum() / scores_array.size)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+####### tensorflow接口构建神经网络
+import tensorflow.compat.v1 as tf
+tf.disable_v2_behavior()
+
+# import tensorflow as tf
+import numpy as np
+import matplotlib.pyplot as plt
+
+x_data = np.linspace(-0.5, 0.5, 200)[:, np.newaxis]
+noise = np.random.normal(0, 0.2, x_data.shape)
+y_data = np.square(x_data) + noise
+
+#定义两个placeholder存放输入数据
+x=tf.placeholder(tf.float32,[None,1])
+y=tf.placeholder(tf.float32,[None,1])
+
+#定义神经网络中间层
+Weights_L1 = tf.Variable(tf.random.normal([1, 10]))
+biases_L1 = tf.Variable(tf.zeros([1, 10]))
+Wx_plus_b_L1 = tf.matmul(x, Weights_L1) + biases_L1
+L1 = tf.nn.tanh(Wx_plus_b_L1)
+
+#定义神经网络输出层
+Weights_L2 = tf.Variable(tf.random.normal([10, 1]))
+biases_L2 = tf.Variable(tf.zeros([1, 1]))
+Wx_plus_b_L2 = tf.matmul(L1, Weights_L2) + biases_L2
+pred = tf.nn.tanh(Wx_plus_b_L2)
+
+#定义损失函数（均方差函数）
+loss = tf.reduce_mean(tf.square(y-pred))
+
+#定义反向传播算法（梯度下降）
+train_step = tf.train.GradientDescentOptimizer(0.1).minimize(loss)
+
+with tf.Session() as sess:
+  # 初始化变量
+  sess.run(tf.global_variables_initializer())
+  # 训练2000次
+  for i in range(2000):
+    sess.run(train_step, feed_dict = {x:x_data, y:y_data})
+  # 获得预测值
+  pred_value = sess.run(pred, feed_dict = {x:x_data})
+
+  # 绘图
+  plt.figure()
+  plt.scatter(x_data, y_data)
+  plt.plot(x_data, pred_value, '-r', lw=5)
+  plt.show()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+####### pyTorch接口构建神经网络
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import torch.nn.functional as F
+import torchvision
+import torchvision.transforms as transforms
+
+class Model:
+  def __init__(self, net, cost, optimist):
+    self.net = net
+    self.cost = self.create_cost(cost)
+    self.optimizer = self.create_optimizer(optimist)
+
+  def create_cost(self, cost):
+      support_cost = {
+          'CROSS_ENTROPY': nn.CrossEntropyLoss(),
+          'MSE': nn.MSELoss()
+      }
+      return support_cost[cost]
+
+  def create_optimizer(self, optimist, **rests):
+    support_optim = {
+        'SGD': optim.SGD(self.net.parameters(), lr=0.1, **rests),
+        'ADAM': optim.Adam(self.net.parameters(), lr=0.01, **rests),
+        'RMSP': optim.RMSprop(self.net.parameters(), lr=0.001, **rests)
+    }
+    return support_optim[optimist]
+
+  def train(self, train_loader, epoch=3):
+    for i in range(epoch):
+      running_loss = 0.0
+      for j, data in enumerate(train_loader, 0):
+        input, label = data
+
+        self.optimizer.zero_grad()
+        output = self.net(input)
+        loss = self.cost(output, label)
+        loss.backward()
+        self.optimizer.step()
+
+        running_loss += loss.item()
+        if j % 100 == 0:
+          print('[epoch %d, %.2f%%]  loss: %.3f' %
+                (epoch + 1, (i + 1)*1./len(train_loader), running_loss/100))
+    print('Finished Training')
+
+  def evaluate(self, test_loader):
+    print('Evaluating...')
+    correct = 0
+    total = 0
+    with torch.no_grad():
+      for data in test_loader:
+        input, label = data
+        output = self.net(input)
+        pred = torch.argmax(output, 1)
+        total += label.size(0)
+        correct += (pred == label).sum().item()
+    print('Accuracy of the network on the test images: %d %%' % (100 * correct / total))
+
+
+def mnist_load_data():
+  transform = transforms.Compose(
+        [transforms.ToTensor(),
+         transforms.Normalize([0,], [1,])])
+
+  trainset = torchvision.datasets.MNIST(root='./data', train=True, download=True, transform=transform)
+  trainloader = torch.utils.data.DataLoader(trainset, batch_size=32, shuffle=True, num_workers=2)
+
+  testset = torchvision.datasets.MNIST(root='./data', train=False, download=True, transform=transform)
+  testloader = torch.utils.data.DataLoader(testset, batch_size=32,shuffle=True, num_workers=2)
+  return trainloader, testloader
+
+class MnistNet(torch.nn.Module):
+  def __init__(self):
+    super().__init__()
+    self.fc1 = nn.Linear(28*28, 512)
+    self.fc2 = nn.Linear(512, 512)
+    self.fc3 = nn.Linear(512, 10)
+
+  def forward(self, x):
+    x = x.view(-1, 28*28)
+    x = F.relu(self.fc1(x))
+    x = F.relu(self.fc2(x))
+    x = F.softmax(self.fc3(x), dim=1)
+    return x
+
+if __name__ == '__main__':
+  net = MnistNet()
+  model = Model(net, 'CROSS_ENTROPY', 'RMSP')
+  train_loader, test_loader = mnist_load_data()
+  model.train(train_loader)
+  model.evaluate(test_loader)
+
+

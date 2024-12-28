@@ -1,0 +1,60 @@
+import numpy as np
+import scipy.cluster.hierarchy as sch
+import matplotlib.pyplot as plt
+from sklearn.linear_model import RANSACRegressor
+from sklearn.datasets import make_regression
+from sklearn.linear_model import LinearRegression
+
+np.random.seed(0)
+# 生成标准线性数据
+n_samples = 1000
+X = np.linspace(0, 10, n_samples).reshape(-1, 1)
+y = 3 * X.squeeze() + 5 + np.random.normal(scale=3.0, size=n_samples)  # y = 3x + 5 + 噪声, 增加噪声
+
+# 添加一些离群点
+n_outliers = 150  # 增加离群点数量
+X_outliers = np.random.uniform(0, 10, n_outliers).reshape(-1, 1)
+y_outliers = np.random.uniform(-20, 40, n_outliers)  # 离群点的 y 值，增加离群点的范围
+
+# 合并正常数据和离群点
+X_all = np.vstack([X, X_outliers])
+y_all = np.hstack([y, y_outliers])
+
+# 绘制数据散点图
+plt.figure(figsize=(10, 6))
+plt.scatter(X_all, y_all, color='blue', label='Data points', alpha=0.5)
+
+# 绘制标准线性直线（原始的标准直线）
+y_standard = 3 * X.squeeze() + 5
+plt.plot(X, y_standard, color='black', label='True Line (y = 3x + 5)', linewidth=2, linestyle='--')
+
+# RANSAC 拟合
+ransac = RANSACRegressor()
+ransac.fit(X_all, y_all)
+
+# 获取 RANSAC 的内点和外点
+inlier_mask = ransac.inlier_mask_
+outlier_mask = np.logical_not(inlier_mask)
+
+# 拟合结果
+line_X = np.linspace(0, 10, 1000).reshape(-1, 1)
+line_y_ransac = ransac.predict(line_X)
+
+# 最小二乘法拟合
+lr = LinearRegression()
+lr.fit(X_all, y_all)
+line_y_lr = lr.predict(line_X)
+
+# 绘制拟合结果
+plt.plot(line_X, line_y_ransac, color='red', label='RANSAC Fit', linewidth=2)
+plt.plot(line_X, line_y_lr, color='green', label='Least Squares Fit', linewidth=2)
+
+# 标记离群点
+plt.scatter(X_all[outlier_mask], y_all[outlier_mask], color='orange', label='Outliers', alpha=0.7)
+
+# 设置图例和标题
+plt.title('RANSAC and Least Squares Line Fitting')
+plt.xlabel('X')
+plt.ylabel('Y')
+plt.legend()
+plt.show()

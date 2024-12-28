@@ -1,0 +1,110 @@
+from PIL import Image
+import numpy as np
+import scipy.fftpack as fft
+
+
+# 1. 均值哈希（Average Hash）
+def average_hash(image_path, hash_size=8):
+    """
+    计算图像的均值哈希（Average Hash）。
+
+    :param image_path: 输入的图像文件路径
+    :param hash_size: 缩放图像的尺寸，默认是 8x8
+    :return: 图像的均值哈希值，类型为整数
+    """
+    # 打开图像
+    image = Image.open(image_path)
+
+    # 将图像缩放为 hash_size x hash_size 大小
+    image = image.resize((hash_size, hash_size), Image.ANTIALIAS)
+
+    # 转换为灰度图像
+    image = image.convert('L')  # 'L' mode means grayscale
+
+    # 将图像转为 numpy 数组
+    pixels = np.array(image)
+
+    # 计算图像的平均值
+    avg = pixels.mean()
+
+    # 创建一个二进制哈希值，亮度大于平均值的像素置为 1，其他为 0
+    diff = pixels > avg
+    hash_value = 0
+
+    for i in range(hash_size):
+        for j in range(hash_size):
+            hash_value |= (diff[i, j] << (i * hash_size + j))
+
+    return hash_value
+
+
+# 2. 差值哈希（Diff Hash）
+def diff_hash(image_path, hash_size=8):
+    """
+    计算图像的差值哈希（Diff Hash）。
+
+    :param image_path: 输入的图像文件路径
+    :param hash_size: 缩放图像的尺寸，默认是 8x8
+    :return: 图像的差值哈希值，类型为整数
+    """
+    # 打开图像
+    image = Image.open(image_path)
+
+    # 将图像缩放为 hash_size x hash_size 大小
+    image = image.resize((hash_size, hash_size), Image.ANTIALIAS)
+
+    # 转换为灰度图像
+    image = image.convert('L')  # 'L' mode means grayscale
+
+    # 将图像转为 numpy 数组
+    pixels = np.array(image)
+
+    # 初始化哈希值
+    hash_value = 0
+
+    # 遍历图像的每一行和每一列，比较相邻像素的差值
+    for i in range(hash_size):
+        for j in range(hash_size - 1):  # 比较每一行相邻的像素
+            if pixels[i, j] < pixels[i, j + 1]:  # 如果当前像素小于下一个像素
+                hash_value |= (1 << (i * (hash_size - 1) + j))  # 设置该位置为 1
+
+    # 返回哈希值
+    return hash_value
+
+
+# 3. 汉明距离计算
+def hamming_distance(hash1, hash2):
+    """
+    计算两个哈希值的汉明距离。
+
+    :param hash1: 第一个哈希值
+    :param hash2: 第二个哈希值
+    :return: 汉明距离（不同的位数）
+    """
+    return bin(hash1 ^ hash2).count('1')
+
+
+# 示例
+if __name__ == "__main__":
+    image_path1 = "image1.jpg"
+    image_path2 = "image2.jpg"
+
+    # 计算均值哈希
+    hash1_avg = average_hash(image_path1)
+    hash2_avg = average_hash(image_path2)
+    print(f"均值哈希 Hash1: {hash1_avg}")
+    print(f"均值哈希 Hash2: {hash2_avg}")
+
+    # 计算差值哈希
+    hash1_diff = diff_hash(image_path1)
+    hash2_diff = diff_hash(image_path2)
+    print(f"差值哈希 Hash1: {hash1_diff}")
+    print(f"差值哈希 Hash2: {hash2_diff}")
+
+    # 计算均值哈希的汉明距离
+    distance_avg = hamming_distance(hash1_avg, hash2_avg)
+    print(f"均值哈希汉明距离: {distance_avg}")
+
+    # 计算差值哈希的汉明距离
+    distance_diff = hamming_distance(hash1_diff, hash2_diff)
+    print(f"差值哈希汉明距离: {distance_diff}")

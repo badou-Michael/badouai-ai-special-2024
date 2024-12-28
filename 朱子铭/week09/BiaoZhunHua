@@ -1,0 +1,64 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+#归一化两种方式
+def Normalization1(x):
+    """归一化（0--1）"""
+    x_min = min(x)
+    x_max = max(x)
+    new_x = []
+    for i in x:
+        value = (float(i) - x_min) / float(x_max - x_min)
+        new_x.append(value)
+    return new_x
+# def Normalization1(x):
+#     '''归一化（0~1）'''
+#     '''x_=(x−x_min)/(x_max−x_min)'''
+#     return [(float(i) - min(x)) / float(max(x) - min(x)) for i in x]
+
+def Normalization2(x):
+    '''归一化（-1~1）'''
+    '''x_=(x−x_mean)/(x_max−x_min)'''
+    # 对于输入列表 x 中的每个元素 i，先计算 i 与 x 的均值的差，再除以 x 中的最大值与最小值的差，
+    # 最后将结果放入一个新的列表并返回。
+    return [(float(i)-np.mean(x))/(max(x)-min(x)) for i in x]
+
+# 标准化
+def z_score(x):
+    '''x∗=(x−μ)/σ'''
+    x_mean = np.mean(x)
+    # 计算输入列表 x 的方差s2，先计算每个元素与均值的差的平方和，再除以列表长度。
+    s2 = sum([(i - np.mean(x)) * (i - np.mean(x)) for i in x]) / len(x)
+    # 对于输入列表 x 中的每个元素 i，先计算 i 与 x 的均值的差，再除以方差的平方根，
+    # 最后将结果放入一个新的列表并返回。
+    return [(i - x_mean) / s2 for i in x]
+
+l = [-10, 5, 5, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 8, 8, 9, 9, 9, 9, 9, 9, 10, 10, 10, 10, 10, 10, 10, 11, 11, 11, 11, 11,
+     11, 12, 12, 12, 12, 12, 13, 13, 13, 13, 14, 14, 14, 15, 15, 30]
+l1 = []
+# for i in l:
+#     i+=2
+#     l1.append(i)
+# print(l1)
+cs=[]
+for i in l:
+    # 统计列表 l 中每个元素出现的次数，并将次数放入列表 cs 中。
+    c=l.count(i)
+    cs.append(c)
+print(cs)
+# 使用 Normalization2 函数对列表 l 进行归一化（-1~1）。
+n=Normalization2(l)
+# 使用 z_score 函数对列表 l 进行标准化。
+z=z_score(l)
+print(n)
+print(z)
+'''
+蓝线为原始数据，橙线为z
+'''
+# 使用 matplotlib 绘制折线图，x 轴为列表 l 和标准化后的列表 z，y 轴为列表 cs，绘制两条线，一条为蓝色代表原始数据，一条为橙色代表标准化后的数据。
+plt.plot(l, cs, label='Original Data', color='red')
+plt.plot(z, cs, label='Z-score Data')
+#添加图例 label
+plt.legend()
+plt.show()
+
