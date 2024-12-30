@@ -1,0 +1,89 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.cluster import KMeans, AgglomerativeClustering
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import silhouette_score
+from scipy.cluster.hierarchy import dendrogram, linkage
+
+# 读取数据
+data = pd.read_csv('环境污染数据.txt')
+data = data[['x1', 'x2', 'x3', 'x4', 'x5', 'x6']]
+
+# 数据预处理
+scaler = StandardScaler()
+data_scaled = scaler.fit_transform(data)
+
+# K均值聚类
+inertia = []
+silhouette_scores = []
+K_range = range(2, 11)  # 假设K值在2到10之间
+for k in K_range:
+    kmeans = KMeans(n_clusters=k, random_state=42)
+    kmeans.fit(data_scaled)
+    inertia.append(kmeans.inertia_)
+    silhouette_scores.append(silhouette_score(data_scaled, kmeans.labels_))
+
+# 确定K值
+optimal_K = np.argmax(silhouette_scores) + 2  # 加2是因为索引从0开始
+print('最佳K值为：', optimal_K)
+
+# 绘制肘部法则图
+plt.figure(figsize=(12, 6))
+plt.subplot(1, 2, 1)
+plt.plot(K_range, inertia, 'bo-')
+plt.xlabel('k')
+plt.ylabel('Inertia')
+plt.title('Elbow Method')
+
+# 绘制轮廓系数图
+plt.subplot(1, 2, 2)
+plt.plot(K_range, silhouette_scores, 'bo-')
+plt.xlabel('k')
+plt.ylabel('Silhouette Score')
+plt.title('Silhouette Method')
+
+# 使用最优K值进行K均值聚类
+kmeans_optimal = KMeans(n_clusters=optimal_K, random_state=42)
+kmeans_optimal.fit(data_scaled)
+
+# 绘制KMeans聚类结果图
+plt.figure(figsize=(8, 6))
+plt.scatter(data_scaled[:, 0], data_scaled[:, 1], c=kmeans_optimal.labels_, cmap='viridis')
+plt.xlabel('Feature 1')
+plt.ylabel('Feature 2')
+plt.title(f'KMeans Clustering with k={optimal_K}')
+plt.colorbar()
+
+# 分析聚类结果
+cluster_centers = kmeans_optimal.cluster_centers_
+labels = kmeans_optimal.labels_
+
+# 分析KMeans不同类中的地区环境污染的特点
+print('对于KMeans聚类的各类污染情况分析：')
+data['Cluster'] = labels
+for i in range(optimal_K):
+    cluster_data = data[data['Cluster'] == i]
+    print(f"Cluster {i}:")
+    print(cluster_data.iloc[:, : -1].describe())
+
+# 层次聚类
+agg_clustering = AgglomerativeClustering(n_clusters=optimal_K)
+agg_labels = agg_clustering.fit_predict(data_scaled)
+
+# 绘制层次聚类树图
+plt.figure(figsize=(10, 8))
+dendrogram(linkage(data_scaled, method='ward'))
+plt.title('Hierarchical Clustering Dendrogram')
+plt.xlabel('Data Points')
+plt.ylabel('Distance')
+
+# 分析层次聚类结果
+print('对于层次聚类的各类污染情况分析：')
+data['Hierarchical_Cluster'] = agg_labels
+for i in range(optimal_K):
+    cluster_data = data[data['Hierarchical_Cluster'] == i]
+    print(f"Hierarchical Cluster {i}:")
+    print(cluster_data.iloc[:, : -2].describe())
+
+plt.show()
