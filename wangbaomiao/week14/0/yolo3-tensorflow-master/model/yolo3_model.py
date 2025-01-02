@@ -14,7 +14,7 @@ class yolo:
         ----------
             norm_decay: 在预测时计算moving average时的衰减率
             norm_epsilon: 方差加上极小的数，防止除以0的情况
-            anchors_path: yolo3 anchor 文件路径
+            anchors_path: yolo anchor 文件路径
             classes_path: 数据集类别对应文件
             pre_train: 是否使用预训练darknet53模型
         """
@@ -255,7 +255,7 @@ class yolo:
         conv_index = 1
         # route1 = 52,52,256、route2 = 26,26,512、route3 = 13,13,1024
         conv2d_26, conv2d_43, conv, conv_index = self._darknet53(inputs, conv_index, training = training, norm_decay = self.norm_decay, norm_epsilon = self.norm_epsilon)
-        with tf.variable_scope('yolo3'):
+        with tf.variable_scope('yolo'):
             #--------------------------------------#
             #   获得第一个特征层
             #--------------------------------------#
