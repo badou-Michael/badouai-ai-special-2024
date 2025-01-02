@@ -1,0 +1,83 @@
+import torch
+import torchvision
+from torchvision import transforms
+from PIL import Image
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+
+import warnings
+warnings.filterwarnings("ignore")
+
+
+# COCO 数据集的类别标签（80类）
+COCO_INSTANCE_CATEGORY_NAMES = [
+    '__background__', 'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus',
+    'train', 'truck', 'boat', 'traffic light', 'fire hydrant', 'N/A', 'stop sign',
+    'parking meter', 'bench', 'bird', 'cat', 'dog', 'horse', 'sheep', 'cow',
+    'elephant', 'bear', 'zebra', 'giraffe', 'N/A', 'backpack', 'umbrella',
+    'N/A', 'N/A', 'handbag', 'tie', 'suitcase', 'frisbee', 'skis', 'snowboard',
+    'sports ball', 'kite', 'baseball bat', 'baseball glove', 'skateboard', 'surfboard',
+    'tennis racket', 'bottle', 'wine glass', 'cup', 'fork', 'knife', 'spoon', 'bowl',
+    'banana', 'apple', 'sandwich', 'orange', 'broccoli', 'carrot', 'hot dog', 'pizza',
+    'donut', 'cake', 'chair', 'couch', 'potted plant', 'bed', 'dining table', 'toilet',
+    'tv', 'laptop', 'mouse', 'remote', 'keyboard', 'cell phone', 'microwave', 'oven',
+    'toaster', 'sink', 'refrigerator', 'book', 'clock', 'vase', 'scissors', 'teddy bear',
+    'hair drier', 'toothbrush'
+]
+
+# 加载预训练的 Faster R-CNN 模型
+model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
+
+# 使用 .eval() 将模型设置为评估模式
+model.eval()
+
+# 加载和处理图像
+img_path = 'lenna.png'  # 替换为你的图像路径
+img = Image.open(img_path).convert("RGB")
+
+# 图像预处理：转换为 Tensor，并调整大小为模型的输入要求
+transform = transforms.Compose([
+    transforms.Resize((800, 800)),  # 尺寸调整，保持比例
+    transforms.ToTensor(),  # 转换为 Tensor
+])
+img_tensor = transform(img).unsqueeze(0)  # 添加 batch 维度
+
+# 如果你有 GPU，可以将图像和模型都移到 GPU 上
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model.to(device)
+img_tensor = img_tensor.to(device)
+
+# 推理
+with torch.no_grad():  # 关闭梯度计算
+    prediction = model(img_tensor)
+
+# 获取预测结果
+boxes = prediction[0]['boxes']
+labels = prediction[0]['labels']
+scores = prediction[0]['scores']
+
+# 设置一个阈值，过滤掉低置信度的检测框
+threshold = 0.5
+boxes = boxes[scores >= threshold]
+labels = labels[scores >= threshold]
+scores = scores[scores >= threshold]
+
+# 绘制结果
+fig, ax = plt.subplots(1, figsize=(12, 9))
+ax.imshow(img)
+
+# 绘制每个预测框
+for box, label, score in zip(boxes, labels, scores):
+    # 获取类别标签
+    category = COCO_INSTANCE_CATEGORY_NAMES[label.item()]
+    # 绘制边界框
+    x1, y1, x2, y2 = box.tolist()
+    rect = patches.Rectangle((x1, y1), x2 - x1, y2 - y1,
+                             linewidth=2, edgecolor='r', facecolor='none')
+    ax.add_patch(rect)
+    
+    # 添加标签和置信度分数
+    ax.text(x1, y1, f'{category}: {score:.2f}', color='r', fontsize=10,
+            bbox=dict(facecolor='yellow', alpha=0.5))
+
+plt.show()
