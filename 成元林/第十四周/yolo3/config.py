@@ -1,0 +1,12 @@
+pre_train_yolo3 = True
+model_dir = './test_model/model.ckpt-192192'
+image_file = "./img/img2.jpg"
+yolo3_weights_path = './model_data/yolov3.weights'
+obj_threshold = 0.5
+nms_threshold = 0.5
+classes_path = './model_data/coco_classes.txt'
+anchors_path = './model_data/yolo_anchors.txt'
+norm_epsilon = 1e-3
+norm_decay = 0.99
+num_anchors = 9
+num_classes = 80
