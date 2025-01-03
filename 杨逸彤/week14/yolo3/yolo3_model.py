@@ -3,7 +3,12 @@ import tensorflow as tf
 import os
 
 class yolo:
-    def __init__(self, norm_epsilon, norm_decay, anchors_path, classes_path, pre_train):
+    def __init__(self,
+                 norm_epsilon,
+                 norm_decay, 
+                 anchors_path, 
+                 classes_path, 
+                 pre_train):
         self.norm_epsilon = norm_epsilon
         self.norm_decay = norm_decay
         self.anchors_path = anchors_path
