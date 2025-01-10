@@ -1,0 +1,608 @@
+# !/usr/bin/env python3
+# -*- coding: utf-8 -*-
+import os
+import os.path as osp
+import copy
+import time
+import random
+import json
+import math
+
+import cv2 as cv
+import numpy as np
+import tensorflow as tf
+import matplotlib.pyplot as plt
+import xml.etree.ElementTree as et
+
+from random import shuffle
+from tensorflow import keras
+from keras import backend as K
+from tensorflow.keras.models import load_model
+
+#日志
+log_path = osp.join(os.getcwd(), "train_log")
+if not osp.exists(log_path):
+    os.mkdir(log_path)
+
+# 配置参数
+AUGMENT_NUM = 4  # 图像强数量, 这里进行了左右, 上下, 左右上下一起翻转, 加上原图所以是 4, 如果不增强则为 1
+FEATURE_STRIDE = 16  # 特征图相对于原始输入图像的缩小的倍数, 如果用 VGG16 作为特征提取网络就是 16
+SHORT_SIZE = 300  # 图像缩放最短边度长(论文是600, 300 是为了训练速度快一点)
+ANCHOR_SIZE = (64, 128, 256)  # anchor_box 3 种边长(论文是 128, 256, 512, 配合最短边为 600, 最短边为 300 时缩小一倍)
+ANCHOR_RATIO = (0.5, 1.0, 2.0)  # anchor_box 3 种边长比例
+ANCHOR_NUM = len(ANCHOR_SIZE) * len(ANCHOR_RATIO)  # 每一个特征图上的点对应的 anchor_box 的数量
+TRAIN_NUM = 256  # 每一张图中参加训练的 anchor_box 的数量
+
+# 类别列表, back_ground 放到最开始, 其他类别不分先后
+CATEGORIES = ("back_ground",
+              "aeroplane", "bicycle", "bird", "boat", "bottle",
+              "bus", "car", "cat", "chair", "cow",
+              "diningtable", "dog", "horse", "motorbike", "person",
+              "pottedplant", "sheep", "sofa", "train", "tvmonitor")
+DATA_PATH = "data_set"  # 这样写表示相对路径, 也可以写成绝对路径, 你喜欢就好
+
+# 取得图像和标注文件路径
+# data_set_path: 数据集所在路径
+# split_rate: 这些文件中用于训练, 验证, 测试所占的比例
+#             如果为 None, 则不区分, 直接返回全部
+#             如果只写一个小数, 如 0.8, 则表示 80% 为训练集, 20% 为验证集, 没有测试集
+#             如果是一个 tuple 或 list, 只有一个元素的话, 同上面的一个小数的情况
+# shuffle_enable: 是否要打乱顺序
+# 返回训练集, 验证集和验证集路径列表
+def get_data_set(data_set_path, split_rate=(0.7, 0.2, 0.1), shuffle_enable=True):
+    data_set = []
+    files = os.listdir(data_set_path)
+
+    for f in files:
+        ext = osp.splitext(f)[1]
+        if ext in (".jpg", ".png", ".bmp"):
+            img_path = osp.join(data_set_path, f)
+
+            ann_type = ""  # 标注文件类型
+            ann_path = img_path.replace(ext, ".json")
+
+            if osp.exists(ann_path):
+                ann_type = "json"
+            else:
+                ann_path = img_path.replace(ext, ".xml")
+                if osp.exists(ann_path):
+                    ann_type = "xml"
+
+            if "" == ann_type:
+                continue
+
+            data_set.append((img_path, ann_path, ann_type))
+
+    if shuffle_enable:
+        shuffle(data_set)
+
+    if None == split_rate:
+        return data_set
+
+    total_num = len(data_set)
+
+    if isinstance(split_rate, float) or 1 == len(split_rate):
+        if isinstance(split_rate, float):
+            split_rate = [split_rate]
+        train_pos = int(total_num * split_rate[0])
+        train_set = data_set[: train_pos]
+        valid_set = data_set[train_pos:]
+
+        return train_set, valid_set
+
+    elif isinstance(split_rate, tuple) or isinstance(split_rate, list):
+        list_len = len(split_rate)
+        assert (list_len > 1)
+
+        train_pos = int(total_num * split_rate[0])
+        valid_pos = int(total_num * (split_rate[0] + split_rate[1]))
+
+        train_set = data_set[0: train_pos]
+        valid_set = data_set[train_pos: valid_pos]
+        test_set = data_set[valid_pos:]
+
+        return train_set, valid_set, test_set
+
+# 取得目录
+# DATA_PATH 在配置参数中
+train_set, valid_set, test_set = get_data_set(DATA_PATH, split_rate = (0.8, 0.1, 0.1))
+
+print("Total number:", len(train_set) + len(valid_set) + len(test_set),
+      " Train number:", len(train_set),
+      " Valid number:", len(valid_set),
+      " Test number:", len(test_set))
+
+# 输出第一个元素
+print("First element:", train_set[0])
+
+
+# 计算 IoU
+# anchor_box 坐标格式为 (x1, y1, x2, y2)
+
+# 交集
+# a1: anchor_box1 a2: anchor_box2
+def intersection(a1, a2):
+    x = max(a1[0], a2[0])
+    y = max(a1[1], a2[1])
+    w = min(a1[2], a2[2]) - x
+    h = min(a1[3], a2[3]) - y
+
+    if w < 0 or h < 0:
+        return 0
+
+    return w * h
+
+# 并集 a1: anchor_box1 a2: anchor_box2
+def union(a1, a2):
+    area_1 = (a1[2] - a1[0]) * (a1[3] - a1[1])
+    area_2 = (a2[2] - a2[0]) * (a2[3] - a2[1])
+    area_union = area_1 + area_2 - intersection(a1, a2)
+
+    return area_union
+
+# IoU
+def get_iou(a1, a2):
+    # 防止 left < right 或者 top < bottom
+    if a1[2] < a1[0]:
+        a1[2], a1[0] = a1[0], a1[2]
+    if a1[3] < a1[1]:
+        a1[3], a1[1] = a1[1], a1[3]
+    if a2[2] < a2[0]:
+        a2[2], a2[0] = a2[0], a2[2]
+    if a2[3] < a2[1]:
+        a2[3], a2[1] = a2[1], a2[3]
+
+    area_i = float(intersection(a1, a2))
+    area_u = float(union(a1, a2))
+
+    if area_u <= 0:
+        return 0
+
+    return area_i / area_u
+
+# 卷积和池化层合并层
+def conv_pool(input=None, filters=1, kernel_size=(3, 3),
+              dilation_rate=(1, 1), padding="same", activation="relu",
+              conv_layers=1, pool_enable=True, normalize=False, init=None,
+              name=None):
+    if None == init:
+        init = keras.initializers.RandomNormal(mean=0.0, stddev=0.05,
+                                               seed=random.randint(0, 1024))
+
+    x = input
+    for i in range(max(conv_layers, 1)):
+        layer_name = None if None == name else name + "_" + str(i + 1)
+
+        if normalize:
+            x = keras.layers.Conv2D(filters=filters,
+                                    kernel_size=kernel_size,
+                                    dilation_rate=dilation_rate,
+                                    kernel_initializer=init,
+                                    padding=padding,
+                                    name=layer_name)(x)
+            x = keras.layers.BatchNormalization()(x)
+            x = keras.layers.Activation(activation)(x)
+        else:
+            x = keras.layers.Conv2D(filters=filters,
+                                    kernel_size=kernel_size,
+                                    dilation_rate=dilation_rate,
+                                    kernel_initializer=init,
+                                    padding=padding,
+                                    activation=activation,
+                                    name=layer_name)(x)
+
+    y = keras.layers.MaxPool2D(pool_size=(2, 2), strides=(2, 2))(x) if pool_enable else x
+
+    return y
+
+# VGG16 卷积部分
+def vgg16_conv(input_layer):
+    x1 = conv_pool(input_layer, 64, conv_layers=2, name="vgg16_x1")
+    x2 = conv_pool(x1, 128, conv_layers=2, name="vgg16_x2")
+    x3 = conv_pool(x2, 256, conv_layers=3, name="vgg16_x3")
+    x4 = conv_pool(x3, 512, conv_layers=3, name="vgg16_x4")
+    x5 = conv_pool(x4, 512, conv_layers=3, pool_enable=False, name="vgg16_x5")
+
+    return x5
+
+# RPN 网络
+# feature: vgg16_conv 输出
+def rpn(feature, anchors=ANCHOR_NUM):
+    # 这里的 filters = 512, 对应 Figure 3 中的 256-d
+    x = keras.layers.Conv2D(filters=512, kernel_size=(3, 3),
+                            padding="same",
+                            activation="relu",
+                            name="rpn_conv")(feature)
+
+    # 下面是增加分类
+    y_cls = keras.layers.Conv2D(anchors * 1, kernel_size=(1, 1),
+                                activation="sigmoid",
+                                kernel_initializer="uniform",
+                                name="rpn_cls")(x)
+
+    return y_cls
+
+# 组合成 rpn 模型
+# 输入层, shape = (None, None, 3) 表示可接受任意大小的 3 通道图像输入
+# 如果把 None 换成具体的数字, 那就只能输入指定大小的图像了
+x = keras.layers.Input(shape = (None, None, 3), name = "input")
+feature = vgg16_conv(x)
+rpn_cls = rpn(feature)
+rpn_model = keras.Model(x, rpn_cls, name = "rpn_model")
+
+rpn_model.summary()
+
+# 生成基础的 k 个 anchor box
+def create_base_anchors(size=ANCHOR_SIZE, ratios=ANCHOR_RATIO):
+    anchors = []
+
+    for r in ratios:
+        # 各种比例下的边长
+        side_1 = [round((x * x * r) ** 0.5) for x in size]
+        side_2 = [round(s / r) for s in side_1]
+        # print(side_1, side_2)
+
+        # 组合各种边长
+        for i in range(len(size)):
+            anchors.append((-side_1[i] // 2, -side_2[i] // 2, side_1[i] // 2, side_2[i] // 2))
+
+    return anchors
+# 测试基础 anchor box
+base_anchors = create_base_anchors()
+for a in base_anchors:
+    print(a, "    w =", a[2] - a[0], "h =", a[3] - a[1])
+
+# 图像缩放函数
+# 返回缩放后的图像和缩放比例
+def new_size_image(image, short_size=SHORT_SIZE):
+    img_shape = list(image.shape)
+    scale = 1.0
+    if img_shape[0] < img_shape[1]:
+        scale = short_size / img_shape[0]
+        img_shape[0] = short_size
+        img_shape[1] = round(img_shape[1] * scale)
+    else:
+        scale = short_size / img_shape[1]
+        img_shape[1] = short_size
+        img_shape[0] = round(img_shape[0] * scale)
+
+    new_image = cv.resize(image, (img_shape[1], img_shape[0]), interpolation=cv.INTER_LINEAR)
+    return new_image, scale
+
+# 在原图上生成训练的 anchor box
+# feature_size: 特征图尺寸
+# anchors: k 个基础 anchor box 坐标
+# stride: 图像到特征图缩小倍数
+def create_train_anchors(feature_size, base_anchors, stride=FEATURE_STRIDE):
+    anchors = []
+
+    for r in range(feature_size[0]):  # 行
+        for c in range(feature_size[1]):  # 列
+            for a in base_anchors:
+                anchors.append([c * stride + stride // 2 + a[0],
+                                r * stride + stride // 2 + a[1],
+                                c * stride + stride // 2 + a[2],
+                                r * stride + stride // 2 + a[3]])
+    return anchors
+
+# 测试 create_train_anchors 并画到图像上
+idx = random.randint(0, len(train_set))  # 随机显示序号, 这个序号后面还会用到
+# print("test image index:", idx)
+# print("test image info:", train_set[idx])
+
+image = cv.imread(train_set[idx][0])  # train_path 由 get_data_set 函数得来的
+# if image is None:
+#      print("image的值为None，请检查相关赋值或数据获取操作！")
+# else:
+#     print("image的值不为None，当前值为:", image)
+image, scale = new_size_image(image, SHORT_SIZE)  # 缩放到统一尺寸
+
+feature_size = (image.shape[0] // FEATURE_STRIDE, image.shape[1] // FEATURE_STRIDE)
+# print("image_size:", image.shape, "feature_size:", feature_size)
+#
+# # 取得每一个 anchor box
+anchors = create_train_anchors(feature_size, base_anchors, FEATURE_STRIDE)
+# print("anchor num:", len(anchors))
+#
+# # 选一个靠中心点的位置画 k 个 anchor box
+center = ((feature_size[0] // 2) * feature_size[1] + feature_size[1] // 2) * len(base_anchors)
+
+# 画框颜色
+colors = ((0, 0, 255), (0, 255, 0), (255, 0, 0))
+img_copy = image.copy()
+
+for i, a in enumerate(anchors[center: center + len(base_anchors)]):
+    cv.rectangle(img_copy, (a[0], a[1]), (a[2], a[3]), colors[i % 3], 2)
+#
+plt.figure("anchor_box", figsize=(8, 4))
+plt.imshow(img_copy[..., :: -1])  # 这里的通道要反过来显示才正常
+plt.show()
+
+# 从 xml 或 json 文件中读出 ground_truth
+# data_set: get_data_set 函数返回的列表
+# categories: 类别列表
+# file_type: 标注文件类型
+# 返回 ground_truth 坐标与类别
+def get_ground_truth(label_path, file_type, categories):
+    ground_truth = []
+    with open(label_path, 'r', encoding="utf-8") as f:
+        if "json" == file_type:
+            jsn = f.read()
+            js_dict = json.loads(jsn)
+            shapes = js_dict["shapes"]  # 取出所有图形
+
+            for shape in shapes:
+                if shape["label"] in categories:
+                    pts = shape["points"]
+                    x1 = round(pts[0][0])
+                    x2 = round(pts[1][0])
+                    y1 = round(pts[0][1])
+                    y2 = round(pts[1][1])
+
+                    # 防止有些人标注的时候喜欢从右下角拉到左上角
+                    if x1 > x2:
+                        x1, x2 = x2, x1
+                    if y1 > y2:
+                        y1, y2 = y2, y1
+
+                    bnd_box = [x1, y1, x2, y2]
+                    cls_id = categories.index(shape["label"])
+
+                    # 把 bnd_box 和 cls_id 组合在一起, 后面可有会用得上
+                    ground_truth.append([bnd_box, cls_id])
+        elif "xml" == file_type:
+            tree = et.parse(f)
+            root = tree.getroot()
+            for obj in root.iter("object"):
+                cls_id = obj.find("name").text
+                cls_id = categories.index(cls_id)  # 类别 id
+
+                bnd_box = obj.find("bndbox")
+                bnd_box = [int(bnd_box.find("xmin").text),
+                           int(bnd_box.find("ymin").text),
+                           int(bnd_box.find("xmax").text),
+                           int(bnd_box.find("ymax").text)]
+
+                # 把 bnd_box 和 cls_id 组合在一起, 后面可有会用得上
+                ground_truth.append([bnd_box, cls_id])
+
+    return ground_truth
+
+# 测试 get_ground_truth
+label_data = train_set[idx]  # idx 上面已经定义过了
+gts = get_ground_truth(label_data[1], label_data[2], CATEGORIES)
+
+img_copy = image.copy()
+# 图像缩放之后, ground_truth 也要做相应的缩放, scale 由 new_size_image 返回
+for gt in gts:
+    gt[0][0] = round(gt[0][0] * scale)
+    gt[0][1] = round(gt[0][1] * scale)
+    gt[0][2] = round(gt[0][2] * scale)
+    gt[0][3] = round(gt[0][3] * scale)
+
+    print(gt, "class:", CATEGORIES[gt[1]])
+
+    cv.rectangle(img_copy, (gt[0][0], gt[0][1]), (gt[0][2], gt[0][3]),
+                 (0, random.randint(128, 256), 0), 2)
+
+plt.figure("label_box", figsize=(8, 4))
+plt.imshow(img_copy[..., :: -1])  # 这里的通道要反过来显示才正常
+plt.show()
+
+# 为每一个 anchor box 打类别标签
+# anchors: create_train_anchors 生成的 anchor_box
+# train_num: 每一张图中参加训练的样本数量
+# 返回每一个 anchor box 的标签类型 1: 正, 0: 负: -1: 中立
+
+POS_VAL = 1  # 正样本
+NEG_VAL = 0  # 负样本
+NEUTRAL = -1  # 其他不参与计算 loss 的样本
+
+def get_rpn_cls_label(img_shape, anchors, ground_truth,
+                      pos_thres=0.7, neg_thres=0.3, train_num=TRAIN_NUM):
+    cls_labels = []  # 存放每个 anchor_box 的标签值和对应的 gt 坐标
+    iou_matrix = []  # 暂时用来存放每个 anchor_box 与 每个 gt 的 iou, 后面用来判断是正样本还是负样本
+    # anchor_box 为列, ground_truth 为行, 组合成一个二维列表
+    # 交点就是 第 i 个 anchor_box 与 第 j 个 gt 的 iou
+    # 这样做的目录是方便为 anchor_box 分配一个与之 iou 最大的 ground_truth box
+    for a in anchors:
+        row_iou = []  # 行, 一个 anchor_box 与 所有 gt 的 iou
+        for gt in ground_truth:
+            '''
+            # 截断代码-------------------------
+            a[0] = max(a[0], 0)
+            a[1] = max(a[1], 0)
+            a[2] = min(a[2], img_shape[1] - 1)
+            a[3] = min(a[3], img_shape[0] - 1)
+
+            iou = get_iou(a, gt[0]) # gt[0] 表示 ground_true box, gt[1] 表示类别 
+            # 截断代码-------------------------
+            '''
+            # 舍去代码-------------------------
+            iou = get_iou(a, gt[0])  # gt[0] 表示 ground_true box, gt[1] 表示类别
+
+            if a[0] < 0 or a[1] < 0 or a[2] >= img_shape[1] or a[3] >= img_shape[0]:
+                iou = -1.0  # 没有赋值为 0, 是因为这样的样本也不参加训练
+            # 舍去代码-------------------------
+
+            row_iou.append(iou)
+        iou_matrix.append(row_iou)
+
+    for r in iou_matrix:
+        # 每一行的最大 iou, 意思就是: 计算某一个 anchor_box 与 每个 gt 的 iou 后取最大值
+        max_iou = max(r)
+        # 如果与其中一个 gt 的 iou >= pos_thres, 则为正样本
+        if (max_iou >= pos_thres):
+            gt = ground_truth[r.index(max_iou)][0]  # 这样做不担心有两个一样大的 IoU 吗? 你自己想一下
+            cls_labels.append((POS_VAL, gt))  # 把 gt 加进去方便后面的回归标签生成
+
+        elif (0 <= max_iou <= neg_thres):  # 这里要判断 0 <= max_iou 是排除超边界的框
+            # 在 batch_size > 1 训练时会做 padding, 所以不排除的话
+            # padding 的黑边就会参与训练
+            cls_labels.append((NEG_VAL, [0, 0, 0, 0]))  # 负样本的 gt 直接赋值为 0, 保持数据的格式一致
+
+        else:
+            cls_labels.append((NEUTRAL, [0, 0, 0, 0]))
+
+    # 如果某一个 gt 没有一个 anchor box 与它的 iou >= pos_thres
+    # 那就要找出与之最大 iou 的那个 anchor box 为正样本
+    # 但是这个 iou 还是要大于 0
+    for g in range(len(ground_truth)):
+        max_iou = 0;
+        for a in range(len(anchors)):
+            # a 行 g 列
+            if (iou_matrix[a][g] > max_iou):
+                max_iou = iou_matrix[a][g]
+
+        if 0 < max_iou < pos_thres:
+            # 当 anchor_box 与 gt box IoU < pos_thres 时
+            # 一个 gt box 可能有多个与之 IoU 一样大的 anchor_box, 比如 anchor_box 在 gt 的内部
+            # 所有这些 anchor_box 与 gt IoU 一样大的都要设置成正样本
+            for a in range(len(anchors)):
+                if iou_matrix[a][g] >= max_iou:
+                    cls_labels[a] = (POS_VAL, ground_truth[g][0])
+
+    # 取出所有正样本与负样本的序号, 方便计数与打乱处理
+    positives = [i for i, x in enumerate(cls_labels) if POS_VAL == x[0]]
+    negatives = [i for i, x in enumerate(cls_labels) if NEG_VAL == x[0]]
+
+    shuffle(positives)  # 打乱
+    shuffle(negatives)
+
+    # 如果正样本数量超过 train_num // 2, 随机选 train_num // 2 个,
+    # 上面打乱后直接取前 train_num // 2 个
+    pos_num = min(train_num // 2, len(positives))
+    for p in positives[pos_num:]:
+        cls_labels[p] = (NEUTRAL, [0, 0, 0, 0])  # 去掉多余的正样本
+
+    # 参加训练的负样本的数量
+    train_negs = train_num - pos_num
+    for n in negatives[train_negs:]:
+        cls_labels[n] = (NEUTRAL, [0, 0, 0, 0])  # 去掉多余的负样本
+
+    cls_ids = []  # 每个 anchor 标签, POS_VAL, NEG_VAL 或 NEUTRAL
+    gt_boxes = []  # 每个 anchor 对应的 gt 坐标
+
+    for label in cls_labels:
+        cls_ids.append(label[0])
+        gt_boxes.append(label[1])
+
+    return cls_ids, gt_boxes
+
+
+# 测试 get_rpn_cls_label, 将其画到图像上, 这里 train_num 设置为 32, 方便显示
+# rpn_cls_label, gt_boxes = get_rpn_cls_label(image.shape, anchors, gts, train_num=32)
+#
+# print("positive boxes: ", rpn_cls_label.count(POS_VAL))
+# print("negative boxes: ", rpn_cls_label.count(NEG_VAL))
+#
+# img_copy = image.copy()
+#
+# for i, a in enumerate(anchors):
+#     if POS_VAL == rpn_cls_label[i]:
+#         gt = gt_boxes[i]
+#         # 测试 get_rpn_cls_label 带出来的 gt 是否正确
+#         cv.rectangle(img_copy, (gt[0], gt[1]), (gt[2], gt[3]), (255, 55, 55), 2)
+#         cv.rectangle(img_copy, (a[0], a[1]), (a[2], a[3]), (0, 255, 0), 2)
+#     elif NEG_VAL == rpn_cls_label[i]:
+#         cv.rectangle(img_copy, (a[0], a[1]), (a[2], a[3]), (0, 0, random.randint(128, 256)), 1)
+#
+# plt.figure("anchor_box", figsize=(8, 4))
+# plt.imshow(img_copy[..., :: -1])  # 这里的通道要反过来显示才正常
+# plt.show()
+
+# 数据增强函数, 包括左右, 上下, 左右上翻转
+# data_pair: data_set_path 返回的数据元素
+# train_num: 一次参数训练的 anchor 的数量
+def data_augment(data_pair, train_num):
+    augmented = []  # 返回增强后的数据
+
+    img_src = cv.imread(data_pair[0])
+    img_new, scale = new_size_image(img_src, SHORT_SIZE)
+    feature_size = (img_new.shape[0] // FEATURE_STRIDE, img_new.shape[1] // FEATURE_STRIDE)
+    anchors = create_train_anchors(feature_size, base_anchors, FEATURE_STRIDE)
+
+    # 原始图像与标签------------------------------------------------------
+    ground_truth = get_ground_truth(data_pair[1], data_pair[2], CATEGORIES)
+    # ground_truth 要做相应的缩放
+    for gt in ground_truth:
+        gt[0][0] = round(gt[0][0] * scale)
+        gt[0][1] = round(gt[0][1] * scale)
+        gt[0][2] = round(gt[0][2] * scale)
+        gt[0][3] = round(gt[0][3] * scale)
+
+    rpn_cls_label, gt_boxes = get_rpn_cls_label(img_new.shape, anchors, ground_truth, train_num=train_num)
+    augmented.append([img_new, rpn_cls_label, gt_boxes])
+    # 原始图像与标签------------------------------------------------------
+
+    # 左右翻转与标签------------------------------------------------------
+    # 复制一份,后面的操作在备份上操作
+    gt_copy = copy.deepcopy(ground_truth)
+    x_flip = cv.flip(img_new, 1)  # 左右翻转图像
+    for gt in gt_copy:  # 左右翻转标签
+        gt[0][0] = x_flip.shape[1] - 1 - gt[0][0]
+        gt[0][2] = x_flip.shape[1] - 1 - gt[0][2]
+        gt[0][0], gt[0][2] = gt[0][2], gt[0][0]
+
+    rpn_cls_label, gt_boxes = get_rpn_cls_label(x_flip.shape, anchors, gt_copy, train_num=train_num)
+    augmented.append([x_flip, rpn_cls_label, gt_boxes])
+    # 左右翻转与标签------------------------------------------------------
+
+    # 上下翻转与标签------------------------------------------------------
+    # 复制一份,后面的操作在备份上操作
+    gt_copy = copy.deepcopy(ground_truth)
+    y_flip = cv.flip(img_new, 0)  # 左右翻转图像
+    for gt in gt_copy:  # 上下翻转标签
+        gt[0][1] = y_flip.shape[0] - 1 - gt[0][1]
+        gt[0][3] = y_flip.shape[0] - 1 - gt[0][3]
+        gt[0][1], gt[0][3] = gt[0][3], gt[0][1]
+
+    rpn_cls_label, gt_boxes = get_rpn_cls_label(y_flip.shape, anchors, gt_copy, train_num=train_num)
+    augmented.append([y_flip, rpn_cls_label, gt_boxes])
+    # 上下翻转与标签------------------------------------------------------
+
+    # 左右上下翻转与标签--------------------------------------------------
+    # 复制一份,后面的操作在备份上操作
+    gt_copy = copy.deepcopy(ground_truth)
+    xy_flip = cv.flip(img_new, -1)  # 左右翻转图像
+    for gt in gt_copy:  # 左右上下翻转标签
+        gt[0][0] = xy_flip.shape[1] - 1 - gt[0][0]
+        gt[0][1] = xy_flip.shape[0] - 1 - gt[0][1]
+        gt[0][2] = xy_flip.shape[1] - 1 - gt[0][2]
+        gt[0][3] = xy_flip.shape[0] - 1 - gt[0][3]
+
+        gt[0][0], gt[0][2] = gt[0][2], gt[0][0]
+        gt[0][1], gt[0][3] = gt[0][3], gt[0][1]
+
+    rpn_cls_label, gt_boxes = get_rpn_cls_label(xy_flip.shape, anchors, gt_copy, train_num=train_num)
+    augmented.append([xy_flip, rpn_cls_label, gt_boxes])
+    # 左右上下翻转与标签--------------------------------------------------
+
+    return augmented
+
+# 测试 data_augment
+titles = ["original", "x_filip", "y_flip", "xy_flip"]
+plt.figure("augmented", figsize=(12, 8))
+
+print(train_set[idx])  # idx 是 保姆级 Keras 实现 Faster R-CNN 二 中生成的随机数
+augmented = data_augment(train_set[idx], train_num=32)
+
+for i, data in enumerate(augmented):
+    img_copy = data[0].copy()
+    feature_size = (img_copy.shape[0] // FEATURE_STRIDE, img_copy.shape[1] // FEATURE_STRIDE)
+    anchors = create_train_anchors(feature_size, base_anchors, FEATURE_STRIDE)
+
+    for j, a in enumerate(anchors):
+        if POS_VAL == data[1][j]:
+            gt = data[2][j]
+            # 测试 get_rpn_cls_label 带出来的 gt 是否正确
+            cv.rectangle(img_copy, (gt[0], gt[1]), (gt[2], gt[3]), (255, 55, 55), 2)
+            cv.rectangle(img_copy, (a[0], a[1]), (a[2], a[3]), (0, 255, 0), 2)
+
+        elif NEG_VAL == data[1][j]:
+            cv.rectangle(img_copy, (a[0], a[1]), (a[2], a[3]), (0, 0, random.randint(128, 256)), 1)
+
+    plt.subplot(2, 2, i + 1)
+    plt.title(titles[i], color='gray')
+    plt.imshow(img_copy[..., :: -1])  # 这里的通道要反过来显示才正常
+plt.show()

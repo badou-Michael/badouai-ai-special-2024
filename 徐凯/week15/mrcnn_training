@@ -1,0 +1,665 @@
+import tensorflow as tf
+import keras.backend as K
+import random
+import numpy as np
+import logging
+from utils import utils
+from utils.anchors import compute_backbone_shapes,generate_pyramid_anchors
+
+# ----------------------------------------------------------#
+#  Loss Functions
+#  rpn的分类损失
+#  rpn边界框的回归损失
+#
+# ----------------------------------------------------------#
+'''
+batch_pack_graph作用：
+1、过滤提议边界框：从一批提议边界框中，根据 NMS 后保留的边界框数量，提取有效边界框，并将它们组合成一个连续的一维张量，以便进一步处理或计算损失
+2、去除无效掩码：对于实例分割任务，生成的掩码图像是不同大小的，batch_pack_graph 可以用于去除填充部分，只保留与真实对象对应的掩码像素
+
+# 从张量 x 的每一行中根据 counts 中指定的数量选择元素，并将这些选定的元素连接成一个一维张量返回
+# 一个二维张量，形状为 [num_rows, max_length]，其中 max_length 是所有行中最长的序列长度
+# counts: 一个一维张量，形状为 [num_rows]，表示每行应该选取多少个元素
+# num_rows: 表示 x 的行数，即批量大小
+'''
+def batch_pack_graph(x, counts, num_rows):
+    outputs = []
+    for i in range(num_rows):
+        outputs.append(x[i, :counts[i]])
+    return tf.concat(outputs, axis=0)
+
+
+'''
+smooth_l1_loss 函数实现了 Smooth L1 损失（也称为 Huber 损失），这是一种结合了均方误差（MSE）和平均绝对误差（MAE）优点的损失函数
+它在较小的误差范围内使用平方损失，而在较大的误差范围内使用线性损失，从而对异常值更加鲁棒
+'''
+# 1、定义损失函数
+def smooth_l1_loss(y_true, y_pred):
+    # diff:计算绝对差值
+    diff = K.abs(y_true - y_pred)
+    # 创建一个与 diff 形状相同的张量，其中每个元素表示对应的 diff 是否小于 1.0
+    # K.less 返回布尔值，而 K.cast 将布尔值转换为浮点数。这一步是为了区分应用平方损失还是线性损失
+    less_than_one = K.cast(K.less(diff, 1.0), "float32")
+    # 如果 diff < 1.0，则应用平方损失：0.5 * diff^2。这部分损失对于较小的误差是平滑的，并且梯度较大，有助于快速收敛
+    # 如果 diff >= 1.0，则应用线性损失：diff - 0.5。这部分损失对于较大的误差是线性的，对异常值更加鲁棒
+    loss = (less_than_one * 0.5 * diff**2) + (1 - less_than_one) * (diff - 0.5)
+    return loss
+
+
+# 2、计算rpn（区域提议网络）的分类损失，计算的是proposals是否为正样本或负样本的二分类损失
+def rpn_class_loss_graph(rpn_match, rpn_class_logits):
+    """
+    rpn_match: [batch, anchors, 1]. Anchor match type. 1=positive,
+               -1=negative, 0=neutral anchor.
+    rpn_class_logits: [batch, anchors, 2]. RPN classifier logits for BG/FG.
+    """
+    # Squeeze last dim to simplify
+    rpn_match = tf.squeeze(rpn_match, -1)
+    # 创建一个与 rpn_match 形状相同的张量 anchor_class
+    # 其中只有当 rpn_match 中的元素等于 1（即正样本）时，对应的 anchor_class 元素才为 1，否则为 0
+    # 这一步是为了标识哪些锚点应该参与损失计算，并将标签转换为适合交叉熵损失的形式
+    anchor_class = K.cast(K.equal(rpn_match, 1), tf.int32)
+    # 找出 rpn_match 中所有不等于 0 的元素的索引位置
+    indices = tf.where(K.not_equal(rpn_match, 0))
+    # 从 rpn_class_logits 和 anchor_class 中选择所有非忽略（即不等于 0）的锚点的数据，只保留正样本和负样本的信息
+    rpn_class_logits = tf.gather_nd(rpn_class_logits, indices)
+    anchor_class = tf.gather_nd(anchor_class, indices)
+    # Cross entropy loss
+    # 当 from_logits=False 时，K.sparse_categorical_crossentropy 假设 output 已经是经过 softmax 归一化后的概率分布
+    loss = K.sparse_categorical_crossentropy(target=anchor_class,
+                                             output=rpn_class_logits,
+                                             from_logits=True)
+    # 检查损失张量 loss 是否包含任何元素。如果 loss 包含元素（即有有效的锚点参与损失计算），则返回这些元素的平均值；
+    # 如果 loss 不包含任何元素（即没有有效的锚点），则返回 0。这一步骤确保了在没有任何有效样本的情况下不会出现错误或 NaN 值
+    loss = K.switch(tf.size(loss) > 0, K.mean(loss), tf.constant(0.0))
+    # 返回一个标量值作为rpn（区域提议网络）的分类损失
+    return loss
+
+
+# 3、计算 RPN（Region Proposal Network）的边界框回归损失
+def rpn_bbox_loss_graph(config, target_bbox, rpn_match, rpn_bbox):
+    """Return the RPN bounding box loss graph.
+    target_bbox：真实边界框相对于锚点的偏移量，用作边界框回归损失的目标值。
+    rpn_match：每个锚点与真实目标之间的匹配关系，用于筛选出哪些锚点参与损失计算。
+    rpn_bbox：RPN 预测的边界框相对于锚点的偏移量，用于计算边界框回归损失
+
+    target_bbox: [batch, max positive anchors, (dy, dx, log(dh), log(dw))].
+    rpn_match: [batch, anchors, 1]
+    rpn_bbox: [batch, anchors, (dy, dx, log(dh), log(dw))]
+    """
+    rpn_match = K.squeeze(rpn_match, -1)
+    # 只计算正样本的损失
+    indices = tf.where(K.equal(rpn_match, 1))
+    rpn_bbox = tf.gather_nd(rpn_bbox, indices)
+
+    # Trim target bounding box deltas to the same length as rpn_bbox.
+    batch_counts = K.sum(K.cast(K.equal(rpn_match, 1), tf.int32), axis=1)
+    target_bbox = batch_pack_graph(target_bbox, batch_counts,
+                                   config.IMAGES_PER_GPU)
+
+    loss = smooth_l1_loss(target_bbox, rpn_bbox)
+    loss = K.switch(tf.size(loss) > 0, K.mean(loss), tf.constant(0.0))
+    # 返回一个标量值作为RPN的边界框回归损失
+    return loss
+
+
+# 4、计算 Mask R-CNN 模型中的分类损失，分类头对每个roi进行多类分类，确定它属于哪个具体类别
+def mrcnn_class_loss_graph(target_class_ids, pred_class_logits, active_class_ids):
+    """
+    Loss for the classifier head of Mask RCNN
+
+    target_class_ids: [batch, num_rois]                真实类别标签
+    pred_class_logits: [batch, num_rois, num_classes]  预测的类别对数概率，roi的预测类别ID
+    active_class_ids: [batch, num_classes]             哪些类别在当前数据集中是活跃的（即该类别确实存在于数据集中）
+
+    """
+    # During model building, Keras calls this function with
+    # target_class_ids of type float32. Unclear why. Cast it
+    # to int to get around it.
+    target_class_ids = tf.cast(target_class_ids, 'int64')
+
+    # Find predictions of classes that are not in the dataset.
+    # 沿指定轴找到最大值的索引
+    pred_class_ids = tf.argmax(pred_class_logits, axis=2)
+    # TODO: Update this line to work with batch > 1. Right now it assumes all
+    #       images in a batch have the same active_class_ids
+    # 假设批次大小为 1，或者所有图像在同一个批次中有相同的 active_class_ids
+    # 如果批次大小大于 1，并且每个图像有不同的 active_class_ids，则需要调整这一行代码以支持逐图像处理
+    pred_active = tf.gather(active_class_ids[0], pred_class_ids)
+
+    # Loss
+    loss = tf.nn.sparse_softmax_cross_entropy_with_logits(
+        labels=target_class_ids, logits=pred_class_logits)
+
+    # 排除非活跃类别的损失
+    loss = loss * pred_active
+
+    # 它将所有正样本的损失总和除以活跃类别预测的总数，从而得到一个批次中每个活跃类别的平均损失
+    loss = tf.reduce_sum(loss) / tf.reduce_sum(pred_active)
+    # 返回每个roi的分类损失
+    return loss
+
+
+# 5、计算边界框回归损失（Bounding Box Regression Loss）的函数。
+# 这个损失函数的目标是调整模型预测的边界框，使其更接近真实边界框的位置和大小
+# 用于精调候选区域的位置和大小，并结合分类信息，只针对正样本（非背景类）计算损失
+def mrcnn_bbox_loss_graph(target_bbox, target_class_ids, pred_bbox):
+    """Loss for Mask R-CNN bounding box refinement.
+
+    target_bbox: [batch, num_rois, (dy, dx, log(dh), log(dw))]
+    target_class_ids: [batch, num_rois]. Integer class IDs.
+    pred_bbox: [batch, num_rois, num_classes, (dy, dx, log(dh), log(dw))]
+    """
+    # Reshape to merge batch and roi dimensions for simplicity.
+    target_class_ids = K.reshape(target_class_ids, (-1,))
+    target_bbox = K.reshape(target_bbox, (-1, 4))
+    pred_bbox = K.reshape(pred_bbox, (-1, K.int_shape(pred_bbox)[2], 4))
+
+    # 找到所有 target_class_ids 中大于 0 的元素的位置索引，即每个正样本索引位置
+    positive_roi_ix = tf.where(target_class_ids > 0)[:, 0]
+    # 根据 positive_roi_ix 提供的索引从 target_class_ids 中收集对应的类别ID。然后，tf.cast 函数将这些类别ID转换为 tf.int64 类型
+    positive_roi_class_ids = tf.cast(
+        tf.gather(target_class_ids, positive_roi_ix), tf.int64)
+    # tf.stack 函数沿一个新的轴堆叠两个张量，创建一个形状为 [N, 2] 的新张量，其中 N 是正样本的数量。
+    # 新的张量每一行包含两个值：一个是 ROI 的索引，另一个是该 ROI 对应的类别 ID
+    indices = tf.stack([positive_roi_ix, positive_roi_class_ids], axis=1)
+
+    target_bbox = tf.gather(target_bbox, positive_roi_ix)
+    # 从 pred_bbox 张量中根据 indices 提供的多维索引收集特定元素或子张量
+    pred_bbox = tf.gather_nd(pred_bbox, indices)
+
+    # Smooth-L1 Loss
+    loss = K.switch(tf.size(target_bbox) > 0,
+                    smooth_l1_loss(y_true=target_bbox, y_pred=pred_bbox),
+                    tf.constant(0.0))
+    loss = K.mean(loss)
+    # 返回精调候选框的回归损失
+    return loss
+
+
+# 6、计算mask损失
+def mrcnn_mask_loss_graph(target_masks, target_class_ids, pred_masks):
+    """Mask binary cross-entropy loss for the masks head.
+
+    target_masks: [batch, num_rois, height, width].
+        A float32 tensor of values 0 or 1. Uses zero padding to fill array.
+    target_class_ids: [batch, num_rois]. Integer class IDs. Zero padded.
+    pred_masks: [batch, proposals, height, width, num_classes] float32 tensor
+                with values from 0 to 1.
+    """
+    # 通过重塑（reshape）张量来简化操作，具体来说是将张量的前两个维度合并为一个维度
+
+    # 将 target_class_ids 的形状从 [batch, num_rois] 改为 [batch * num_rois,]
+    target_class_ids = K.reshape(target_class_ids, (-1,))
+
+    # 获取 target_masks 的形状，并将其从 [batch, num_rois, height, width] 改为 [batch * num_rois, height, width]
+    mask_shape = tf.shape(target_masks)
+    target_masks = K.reshape(target_masks, (-1, mask_shape[2], mask_shape[3]))
+
+    # 获取 pred_masks 的形状，并将其从 [batch, proposals, height, width, num_classes] 改为 [batch * num_rois, height, width, num_classes]
+    pred_shape = tf.shape(pred_masks)
+    pred_masks = K.reshape(pred_masks,
+                           (-1, pred_shape[2], pred_shape[3], pred_shape[4]))
+
+    # 调整 pred_masks 的维度顺序，从 [N, height, width, num_classes] 变为 [N, num_classes, height, width]
+    pred_masks = tf.transpose(pred_masks, [0, 3, 1, 2])
+
+    # Only positive ROIs contribute to the loss. And only
+    # the class specific mask of each ROI.
+    positive_ix = tf.where(target_class_ids > 0)[:, 0]
+    positive_class_ids = tf.cast(
+        tf.gather(target_class_ids, positive_ix), tf.int64)
+    indices = tf.stack([positive_ix, positive_class_ids], axis=1)
+
+    # Gather the masks (predicted and true) that contribute to loss
+    y_true = tf.gather(target_masks, positive_ix)
+    y_pred = tf.gather_nd(pred_masks, indices)
+
+    # Compute binary cross entropy. If no positive ROIs, then return 0.
+    # shape: [batch, roi, num_classes]
+    loss = K.switch(tf.size(y_true) > 0,
+                    K.binary_crossentropy(target=y_true, output=y_pred),
+                    tf.constant(0.0))
+    loss = K.mean(loss)
+    # 返回mask损失
+    return loss
+
+
+# --------------------------------------------------------------------------- #
+#  Data Generator
+# --------------------------------------------------------------------------- #
+
+def load_image_gt(dataset, config, image_id, augment=False, augmentation=None,
+                  use_mini_mask=False):
+    """
+        加载指定 ID 的图像及其对应的地面真实信息，并进行必要的预处理。
+
+        参数:
+        - dataset: 包含图像和标注信息的数据集对象。
+        - config: 模型配置对象，包含各种超参数。
+        - image_id: 图像的唯一标识符。
+        - augment: 是否启用数据增强，默认为 False。
+        - augmentation: 数据增强的具体方法，如果指定了 augment 为 True，则此参数有效。
+        - use_mini_mask: 是否使用 mini mask 来减少内存占用，默认为 False。
+
+        返回:
+        - image: 预处理后的图像。
+        - image_meta: 图像元数据，如原始形状、窗口等。
+        - class_ids: 类别 ID 数组。
+        - bbox: 边界框坐标数组。
+        - mask: 掩码数组。(height, width, num_instances).num_instances 是掩码中不同实例的数量。每个实例的掩码是一个二值矩阵，表示该实例在图像中的位置
+        """
+    # 载入图片和语义分割效果
+    image = dataset.load_image(image_id)
+    # mask: 返回的掩码是一个三维数组，形状为 (height, width, num_instances)，其中 num_instances 表示图像中不同实例的数量。每个实例的掩码是二值的，即属于该实例的像素位置为 1，不属于的为 0。
+    # class_ids: 返回的是一个一维数组，长度为 num_instances，表示每个实例所属的类别 ID
+    mask, class_ids = dataset.load_mask(image_id)
+    # 打印调式信息
+    print("\nbefore:",image_id,np.shape(mask),np.shape(class_ids))
+    # 原始shape
+    original_shape = image.shape
+
+    '''
+    使用 utils.resize_image 和 utils.resize_mask 函数来调整图像和掩码的大小。
+    这两个函数通常用于确保所有输入到模型中的图像都具有相同的尺寸，同时保持图像的比例不变，并相应地调整掩码以匹配新的图像尺寸.
+    
+    image: 调整大小后的图像。
+    window: 一个元组 (y1, x1, y2, x2)，表示原始图像在调整后图像中的位置。这有助于在推理时将预测结果映射回原始图像坐标。
+    scale: 图像调整的比例因子。
+    padding: 图像周围添加的填充量，表示为 (top, bottom, left, right)。
+    crop: 如果进行了裁剪操作，则包含裁剪的信息。
+    '''
+    image, window, scale, padding, crop = utils.resize_image(
+        image,
+        min_dim=config.IMAGE_MIN_DIM,
+        min_scale=config.IMAGE_MIN_SCALE,
+        max_dim=config.IMAGE_MAX_DIM,
+        mode=config.IMAGE_RESIZE_MODE)
+    mask = utils.resize_mask(mask, scale, padding, crop)
+
+    print("\nafter:",np.shape(mask),np.shape(class_ids))
+    print(np.shape(image),np.shape(mask))
+
+    # 可以把图片进行翻转
+    if augment:
+        logging.warning("'augment' is deprecated. Use 'augmentation' instead.")
+        if random.randint(0, 1):
+            image = np.fliplr(image)
+            mask = np.fliplr(mask)
+
+    if augmentation:
+        import imgaug
+        # 可用于图像增强
+        MASK_AUGMENTERS = ["Sequential", "SomeOf", "OneOf", "Sometimes",
+                           "Fliplr", "Flipud", "CropAndPad",
+                           "Affine", "PiecewiseAffine"]
+
+        # 通过定义这个 hook 函数并传递给 imgaug 的增强管道，确保只有那些适合应用于掩码的增强器才会被应用，从而保证了掩码与图像之间的一致性和正确性
+        def hook(images, augmenter, parents, default):
+            """Determines which augmenters to apply to masks."""
+            return augmenter.__class__.__name__ in MASK_AUGMENTERS
+
+        image_shape = image.shape
+        mask_shape = mask.shape
+        # det 是一个确定性的增强器，它会确保 images_aug 和 masks_aug 经历相同的变换过程，从而保持它们之间的一致性
+        det = augmentation.to_deterministic()
+
+        image = det.augment_image(image)
+        mask = det.augment_image(mask.astype(np.uint8),
+                                 hooks=imgaug.HooksImages(activator=hook))
+
+        # 验证步骤，确保增强操作不会改变图像和掩码的尺寸，并且将掩码的数据类型转换为布尔型
+        assert image.shape == image_shape, "Augmentation shouldn't change image size"
+        assert mask.shape == mask_shape, "Augmentation shouldn't change mask size"
+        mask = mask.astype(np.bool)
+    # 过滤无效的掩码实例，确保后续处理只针对包含实际内容的掩码
+    # _idx: 一个布尔数组，长度为 num_instances，指示哪些实例在掩码中有非零像素
+    _idx = np.sum(mask, axis=(0, 1)) > 0
+    print("\nafterer:",np.shape(mask),np.shape(_idx))
+
+    mask = mask[:, :, _idx]
+    class_ids = class_ids[_idx]
+    # 找到mask对应的box
+    bbox = utils.extract_bboxes(mask)
+
+    # 创建一个 active_class_ids 数组，用于标识在当前图像中哪些类别是活跃的（即存在对应的实例）
+    active_class_ids = np.zeros([dataset.num_classes], dtype=np.int32)
+    # source_class_ids: 结果是一个数组或列表，包含当前数据源中存在的类别 ID
+    source_class_ids = dataset.source_class_ids[dataset.image_info[image_id]["source"]]
+    # 标记活跃类别
+    active_class_ids[source_class_ids] = 1
+
+    '''
+    Mini Mask 的原理
+    缩小掩码：将原始掩码缩小到一个固定的、较小的尺寸（如 56x56 或 28x28）。这通常涉及到对掩码进行下采样（downsampling）。
+    存储 mini mask：在训练或推理过程中，只保存缩小后的 mini mask 和与之相关的边界框信息（bounding box）。边界框用于记录对象在原始图像中的位置。
+    恢复掩码：当需要使用掩码时，根据边界框的位置将 mini mask 上采样（upsampling）回原始尺寸，并放置到正确的位置上。
+    '''
+    if use_mini_mask:
+        mask = utils.minimize_mask(bbox, mask, config.MINI_MASK_SHAPE)
+
+    # 生成Image_meta,创建一个包含图像元数据的数组
+    image_meta = utils.compose_image_meta(image_id, original_shape, image.shape,
+                                    window, scale, active_class_ids)
+
+    return image, image_meta, class_ids, bbox, mask
+
+
+# 为 RPN 提供训练目标，包括分类标签（正负样本）和边界框回归目标
+def build_rpn_targets(image_shape, anchors, gt_class_ids, gt_boxes, config):
+    '''
+        参数解释
+        image_shape: 输入图像的形状 (height, width, channels)。这有助于确定锚点相对于图像的位置
+        anchors: 一组预定义的锚点，通常是通过在特征图上均匀分布并映射回原始图像坐标得到的。每个锚点是一个潜在的对象候选框
+        gt_class_ids: 类别 ID 数组，长度为 num_gt_instances，表示每个实例的类别
+        gt_boxes: 边界框数组，形状为 [num_gt_instances, (y1, x1, y2, x2)]，表示每个实例的边界框位置
+        config: 模型配置对象，包含各种超参数，如正负样本的比例、IoU 阈值等
+
+        返回值
+        rpn_match: 形状为 [num_anchors] 的数组，表示每个锚点是否应该被忽略（0）、是负样本（-1）还是正样本（1）
+        rpn_bbox: 形状为 [config.RPN_TRAIN_ANCHORS_PER_IMAGE, 4] 的数组，表示锚点与最接近的真实框之间的偏移量（即边界框回归目标）
+    '''
+
+    rpn_match = np.zeros([anchors.shape[0]], dtype=np.int32)
+    # 创建该部分内容利用先验框和真实框进行编码
+    rpn_bbox = np.zeros((config.RPN_TRAIN_ANCHORS_PER_IMAGE, 4))
+
+    '''
+    iscrowd=0的时候，表示这是一个单独的物体，轮廓用Polygon(多边形的点)表示，
+    iscrowd=1的时候表示两个没有分开的物体，轮廓用RLE编码表示，比如说一张图片里面有三个人，
+    一个人单独站一边，另外两个搂在一起（标注的时候距离太近分不开了），这个时候，
+    单独的那个人的注释里面的iscrowing=0,segmentation用Polygon表示，
+    而另外两个用放在同一个anatation的数组里面用一个segmention的RLE编码形式表示
+    '''
+    # "crowd" 实例是指那些难以明确区分个体对象的情况，例如人群中的密集人群或重叠严重的物体群
+    # 识别类别 ID (gt_class_ids) 中的“crowd”实例
+    # crowd_ix: 一个一维数组，包含 gt_class_ids 中所有小于 0 的元素的索引。这些索引对应于 "crowd" 实例的位置
+    crowd_ix = np.where(gt_class_ids < 0)[0]
+
+    if crowd_ix.shape[0] > 0:
+        # 非 crowd 实例索引
+        non_crowd_ix = np.where(gt_class_ids > 0)[0]
+        # crowd 实例索引
+        crowd_boxes = gt_boxes[crowd_ix]
+        # 非 crowd 实例id
+        gt_class_ids = gt_class_ids[non_crowd_ix]
+        # 非 crowd 实例boxes
+        gt_boxes = gt_boxes[non_crowd_ix]
+        # 计算每个锚点与所有 "crowd" 实例边界框之间的 IoU
+        # 返回一个形状为 [num_anchors, num_crowd_instances] 的 IoU 矩阵，其中每个元素表示一个锚点与一个 "crowd" 实例之间的 IoU
+        crowd_overlaps = utils.compute_overlaps(anchors, crowd_boxes)
+        # 使用 np.amax 函数沿 axis=1（即 "crowd" 实例维度）找到每个锚点与所有 "crowd" 实例之间的最大 IoU。
+        # 结果是一个形状为 [num_anchors] 的一维数组，表示每个锚点与 "crowd" 实例的最大 IoU
+        crowd_iou_max = np.amax(crowd_overlaps, axis=1)
+        # 使用条件 (crowd_iou_max < 0.001) 创建一个布尔数组 no_crowd_bool。
+        # 这个布尔数组标记了哪些锚点几乎不与任何 "crowd" 实例重叠，因此可以被视为不受 "crowd" 实例影响
+        no_crowd_bool = (crowd_iou_max < 0.001)
+    else:
+        '''参数解释
+           anchors: 形状为 [num_anchors, (y1, x1, y2, x2)] 的锚点数组，表示一组预定义的候选框。
+           anchors.shape[0]: 锚点数组的第一个维度的大小，即锚点的数量。
+           np.ones(..., dtype=bool): 使用 numpy.ones 函数创建一个全为 1 的数组，并指定数据类型为布尔型 (bool)
+        '''
+        # 这表示默认情况下，所有的锚点都不受 "crowd" 实例的影响
+        no_crowd_bool = np.ones([anchors.shape[0]], dtype=bool)
+
+    # 计算先验框和真实框的重合程度iou [num_anchors, num_gt_boxes]
+    # overlaps: 形状为 [num_anchors, num_gt_instances] 的 IoU 矩阵
+    overlaps = utils.compute_overlaps(anchors, gt_boxes)
+
+    # 1. 重合程度小于0.3则代表为负样本
+    # 找到每个锚点的最大 IoU 和对应的 gt_boxes 索引
+    anchor_iou_argmax = np.argmax(overlaps, axis=1)
+    # 使用 np.arange 创建一个从 0 到 num_anchors 的索引数组。
+    # 使用高级索引方式提取每个锚点与其最大 IoU 对应 gt_boxes 的 IoU 值。
+    # 结果是一个形状为 [num_anchors] 的一维数组，表示每个锚点与 gt_boxes 的最大 IoU
+    anchor_iou_max = overlaps[np.arange(overlaps.shape[0]), anchor_iou_argmax]
+    rpn_match[(anchor_iou_max < 0.3) & (no_crowd_bool)] = -1
+    # 2. 每个真实框重合度最大的先验框是正样本
+    '''
+    1、计算每个地面真实框的最大 IoU：
+       使用 np.max 函数沿 axis=0（即锚点维度）找到每个 gt_boxes 与所有锚点之间的最大 IoU。
+       结果是一个形状为 [num_gt_instances] 的一维数组，表示每个 gt_boxes 的最大 IoU。
+    2、找到达到最大 IoU 的锚点索引：
+       使用 np.argwhere 函数查找 IoU 矩阵中等于上述最大 IoU 的元素位置。
+       返回一个形状为 [num_matches, 2] 的二维数组，其中每行包含两个索引：第一个索引是锚点索引，第二个索引是 gt_boxes 索引。
+    3、提取锚点索引
+       使用切片操作 [:,0] 提取所有匹配中的锚点索引。
+       结果是一个一维数组，包含与每个 gt_boxes IoU 最大的锚点索引。
+    返回值
+       gt_iou_argmax: 一个一维数组，长度为 num_gt_instances 或更少（如果有多个锚点与同一个 gt_boxes 有相同的最大 IoU）
+       表示每个 gt_boxes 对应的 IoU 最大的锚点索引
+    '''
+    gt_iou_argmax = np.argwhere(overlaps == np.max(overlaps, axis=0))[:, 0]
+    rpn_match[gt_iou_argmax] = 1
+    # 3. 重合度大于0.7则代表为正样本
+    rpn_match[anchor_iou_max >= 0.7] = 1
+
+    # 找到正样本的索引
+    ids = np.where(rpn_match == 1)[0]
+    # 正负样本平衡
+    # 如果大于(config.RPN_TRAIN_ANCHORS_PER_IMAGE // 2)则删掉一些
+    extra = len(ids) - (config.RPN_TRAIN_ANCHORS_PER_IMAGE // 2)
+    # 随机选择多余（extra）正样本，并将它们标记为中立（0）
+    if extra > 0:
+        ids = np.random.choice(ids, extra, replace=False)
+        rpn_match[ids] = 0
+    # 找到负样本的索引
+    ids = np.where(rpn_match == -1)[0]
+    # 使得总数为config.RPN_TRAIN_ANCHORS_PER_IMAGE
+    extra = len(ids) - (config.RPN_TRAIN_ANCHORS_PER_IMAGE -
+                        np.sum(rpn_match == 1))
+    # 如果有过多的正样本，则随机选择多余的部分并将它们重新标记为中立（0）
+    if extra > 0:
+        # Rest the extra ones to neutral
+        ids = np.random.choice(ids, extra, replace=False)
+        rpn_match[ids] = 0
+
+    # 找到所有被标记为正样本的锚点索引
+    ids = np.where(rpn_match == 1)[0]
+    ix = 0
+    # 使用 zip 同时遍历正样本索引 ids 和对应的锚点 anchors[ids]
+    for i, a in zip(ids, anchors[ids]):
+        # 获取与当前锚点对应的 gt_box
+        gt = gt_boxes[anchor_iou_argmax[i]]
+        # 计算真实框的中心，高宽
+        gt_h = gt[2] - gt[0]
+        gt_w = gt[3] - gt[1]
+        gt_center_y = gt[0] + 0.5 * gt_h
+        gt_center_x = gt[1] + 0.5 * gt_w
+        # 计算先验框中心，高宽
+        a_h = a[2] - a[0]
+        a_w = a[3] - a[1]
+        a_center_y = a[0] + 0.5 * a_h
+        a_center_x = a[1] + 0.5 * a_w
+        # 编码运算：计算中心点偏移量和尺度变换，作为边界框回归的目标
+        rpn_bbox[ix] = [
+            (gt_center_y - a_center_y) / a_h,
+            (gt_center_x - a_center_x) / a_w,
+            np.log(gt_h / a_h),
+            np.log(gt_w / a_w),
+        ]
+        # 改变数量级：对回归目标进行标准化
+        rpn_bbox[ix] /= config.RPN_BBOX_STD_DEV
+        ix += 1
+
+    return rpn_match, rpn_bbox
+
+
+def data_generator(dataset, config, shuffle=True, augment=False, augmentation=None,
+                   batch_size=1, detection_targets=False,
+                   no_augmentation_sources=None):
+    """
+    inputs list:
+    - images: [batch, H, W, C]
+    - image_meta: [batch, (meta data)]
+    - rpn_match: [batch, N]
+    - rpn_bbox: [batch, N, (dy, dx, log(dh), log(dw))]
+    - gt_class_ids: [batch, MAX_GT_INSTANCES]
+    - gt_boxes: [batch, MAX_GT_INSTANCES, (y1, x1, y2, x2)]
+    - gt_masks: [batch, height, width, MAX_GT_INSTANCES].
+    """
+
+    '''
+    data_generator 函数
+    是一个用于生成训练或验证数据批次的生成器函数，特别适用于像 Mask R-CNN 这样的模型。
+    该函数从给定的数据集中读取图像及其对应的标注信息（如边界框、类别标签等），
+    并根据配置和其他参数对这些数据进行预处理和增强，最终返回一个批次的数据供模型训练或评估使用。
+    
+    参数解释
+    dataset: 数据集对象，包含所有训练或验证样本。
+    config: 配置对象，包含模型训练的各种参数，例如图像尺寸、锚点设置等。
+    shuffle (bool): 是否在每个 epoch 开始时打乱数据顺序，默认为 True。
+    augment (bool): 是否启用数据增强，默认为 False。
+    augmentation: 如果指定了具体的增强方法，则使用此参数提供的增强方法。
+    batch_size (int): 每个批次的样本数量，默认为 1。
+    detection_targets (bool): 是否生成检测目标（如边界框回归目标、分类目标等），默认为 False。
+    no_augmentation_sources: 一个列表，指定哪些数据来源不应进行数据增强。
+    
+    功能说明
+    1、数据打乱：
+    如果 shuffle=True，则在每个 epoch 开始时打乱数据顺序，以确保模型不会因为数据顺序而产生偏差。
+    2、数据增强：
+    如果 augment=True 或者指定了具体的 augmentation 方法，则对图像及其标注信息进行增强，如随机裁剪、翻转、旋转等。这有助于提高模型的泛化能力。
+    如果 no_augmentation_sources 列表中包含当前数据来源，则不对该来源的数据进行增强。
+    3、批量生成：
+    根据 batch_size 参数，每次生成一批次的数据。每批次的数据包括图像、对应的标注信息（如边界框、类别标签等）以及其他可能需要的信息（如掩码、RPN 目标等）。
+    4、检测目标生成：
+    如果 detection_targets=True，则生成检测任务所需的额外目标，如边界框回归目标、分类目标等。
+    5、无限循环：
+    通常情况下，数据生成器会无限循环提供数据，直到外部停止条件被满足（例如完成所有 epochs 的训练）。
+    '''
+    # 初始化步骤
+    b = 0  # batch item index
+    image_index = -1
+    image_ids = np.copy(dataset.image_ids)
+    # 如果 no_augmentation_sources 参数未提供（即为 None），则将其设置为空列表 []。
+    # 这个变量用于指定哪些数据来源不应进行数据增强，确保某些特定来源的数据保持不变
+    no_augmentation_sources = no_augmentation_sources or []
+
+    '''
+    compute_backbone_shapes:
+    根据输入图像的尺寸 (config.IMAGE_SHAPE) 和模型配置 (config) 来计算骨干网络（backbone network）输出的形状。
+    在FPN结构中，不同层次的特征图有不同的分辨率，通常是从高分辨率到低分辨率。
+    backbone_shapes 将是一个列表或数组，表示每个特征层级的形状。
+    
+    generate_pyramid_anchors:
+    使用给定的参数来生成整个特征金字塔的锚点集合。它接受以下几个参数：
+    RPN_ANCHOR_SCALES: 每个特征层级上的锚点尺度（以像素为单位），通常是一个元组，例如 (32, 64, 128, 256, 512)。
+    RPN_ANCHOR_RATIOS: 锚点的比例（宽高比），例如 [0.5, 1, 2]，这代表了宽高比为 1:2、1:1 和 2:1 的锚点。
+    backbone_shapes: 每个特征层级的形状，由 compute_backbone_shapes 函数计算得出。
+    BACKBONE_STRIDES: 骨干网络步长，即输入图像大小缩小到各个特征层级大小的比例因子，例如 [4, 8, 16, 32, 64]。
+    RPN_ANCHOR_STRIDE: 在特征图上生成锚点时的步长，控制锚点之间的间距。通常设置为 1 或 2。
+    该函数将返回一个包含所有锚点坐标的数组 anchors，这些坐标定义了每个锚点相对于输入图像的位置和大小。
+    '''
+    backbone_shapes = compute_backbone_shapes(config, config.IMAGE_SHAPE)
+    anchors = generate_pyramid_anchors(config.RPN_ANCHOR_SCALES,
+                                             config.RPN_ANCHOR_RATIOS,
+                                             backbone_shapes,
+                                             config.BACKBONE_STRIDES,
+                                             config.RPN_ANCHOR_STRIDE)
+
+    while True:
+        # 通过使用模运算（%），当 image_index 达到 len(image_ids) 时，它会自动回绕至0，这允许我们循环遍历 image_ids 列表而不用担心索引超出范围。
+        image_index = (image_index + 1) % len(image_ids)
+        if shuffle and image_index == 0:
+            np.random.shuffle(image_ids)
+
+        # 获得id
+        image_id = image_ids[image_index]
+
+        '''
+        dataset.image_info[image_id]['source']: 这里访问了 dataset 对象中的 image_info 字典，获取特定 image_id 图像的信息。然后进一步访问该图像信息中的 'source' 键，它可能指明了图像的来源（例如，不同的数据集或数据收集方式）。
+        no_augmentation_sources: 这是一个包含不应对其应用数据增强操作的数据源名称的列表或其他可迭代对象。如果当前图像的来源位于这个列表中，则不会对该图像应用数据增强。
+        load_image_gt(): 这个函数负责从数据集中加载给定 image_id 的图像、图像元数据（如尺寸等）、以及真实标签（ground truth），包括类别ID (gt_class_ids)、边界框坐标 (gt_boxes) 和分割掩码 (gt_masks)。该函数还接收配置参数 (config) 和是否启用增强的标志 (augment)
+        '''
+        if dataset.image_info[image_id]['source'] in no_augmentation_sources:
+            image, image_meta, gt_class_ids, gt_boxes, gt_masks = \
+            load_image_gt(dataset, config, image_id, augment=augment,
+                            augmentation=None,
+                            use_mini_mask=config.USE_MINI_MASK)
+        else:
+            image, image_meta, gt_class_ids, gt_boxes, gt_masks = \
+                load_image_gt(dataset, config, image_id, augment=augment,
+                            augmentation=augmentation,
+                            use_mini_mask=config.USE_MINI_MASK)
+        # 整个条件表达式的意思是：如果没有一个 gt_class_ids 元素大于 0
+        if not np.any(gt_class_ids > 0):
+            # 使用 continue，跳过这些不合适的样本，避免它们影响模型训练
+            continue
+
+        # RPN Targets
+        rpn_match, rpn_bbox = build_rpn_targets(image.shape, anchors,
+                                                gt_class_ids, gt_boxes, config)
+
+        '''
+        当图像中的 gt_boxes 数量超过模型配置中指定的最大实例数（config.MAX_GT_INSTANCES）时的情况。
+        它通过随机选择一定数量的实例来确保 gt_boxes、gt_class_ids 和 gt_masks 的数量不超过设定的最大值。
+        这种做法有助于维持批次数据的一致性，并避免内存或计算资源的过度消耗
+        '''
+        if gt_boxes.shape[0] > config.MAX_GT_INSTANCES:
+            ids = np.random.choice(
+                np.arange(gt_boxes.shape[0]), config.MAX_GT_INSTANCES, replace=False)
+            gt_class_ids = gt_class_ids[ids]
+            gt_boxes = gt_boxes[ids]
+            gt_masks = gt_masks[:, :, ids]
+
+       '''
+       在批次数据处理的开始时，初始化用于存储一个批次内所有图像及其相关标注信息的 NumPy 数组。
+       这些数组将被用来累积当前批次的数据，直到该批次满（即包含 batch_size 个样本），然后将其传递给模型进行训练或评估。
+       
+       batch_image_meta: 存储batch_size个图像的元数据。
+       batch_rpn_match: 存储batch_size个图像的所有锚点匹配结果。
+       batch_rpn_bbox: 存储batch_size个图像中用于训练RPN的锚点的边界框回归目标。
+       batch_images: 存储batch_size个图像的数据。
+       batch_gt_class_ids: 每个图像最多可以有config.MAX_GT_INSTANCES个类别的ID。
+       batch_gt_boxes: 每个图像最多可以有config.MAX_GT_INSTANCES个边界框。
+       batch_gt_masks: 每个图像最多可以有config.MAX_GT_INSTANCES个实例的分割掩码
+       '''
+        if b == 0:
+            batch_image_meta = np.zeros(
+                (batch_size,) + image_meta.shape, dtype=image_meta.dtype)
+            batch_rpn_match = np.zeros(
+                [batch_size, anchors.shape[0], 1], dtype=rpn_match.dtype)
+            batch_rpn_bbox = np.zeros(
+                [batch_size, config.RPN_TRAIN_ANCHORS_PER_IMAGE, 4], dtype=rpn_bbox.dtype)
+            batch_images = np.zeros(
+                (batch_size,) + image.shape, dtype=np.float32)
+            batch_gt_class_ids = np.zeros(
+                (batch_size, config.MAX_GT_INSTANCES), dtype=np.int32)
+            batch_gt_boxes = np.zeros(
+                (batch_size, config.MAX_GT_INSTANCES, 4), dtype=np.int32)
+            batch_gt_masks = np.zeros(
+                (batch_size, gt_masks.shape[0], gt_masks.shape[1],
+                    config.MAX_GT_INSTANCES), dtype=gt_masks.dtype)
+        # Add to batch
+        batch_image_meta[b] = image_meta
+        batch_rpn_match[b] = rpn_match[:, np.newaxis]
+        batch_rpn_bbox[b] = rpn_bbox
+        batch_images[b] = utils.mold_image(image.astype(np.float32), config)
+        batch_gt_class_ids[b, :gt_class_ids.shape[0]] = gt_class_ids
+        batch_gt_boxes[b, :gt_boxes.shape[0]] = gt_boxes
+        batch_gt_masks[b, :, :, :gt_masks.shape[-1]] = gt_masks
+
+        b += 1
+        
+        # Batch full?
+        '''
+        batch_images: 处理后的图像数据。
+        batch_image_meta: 图像元数据。
+        batch_rpn_match: RPN 匹配结果。
+        batch_rpn_bbox: RPN 边界框回归目标。
+        batch_gt_class_ids: 真实类别ID。
+        batch_gt_boxes: 真实边界框坐标。
+        batch_gt_masks: 真实分割掩码
+        '''
+        if b >= batch_size:
+            inputs = [batch_images, batch_image_meta, batch_rpn_match, batch_rpn_bbox,
+                        batch_gt_class_ids, batch_gt_boxes, batch_gt_masks]
+            outputs = []
+            # yield 是 Python 中用于定义生成器的关键字。这里它用于将 inputs 和 outputs 作为一个元组返回，表示一个完整的批次数据。
+            # 使用 yield 而不是 return 允许函数在每次生成新的批次后暂停执行，并在下一次调用时从中断的地方继续，从而实现高效的内存管理和数据流处理
+            yield inputs, outputs
+
+            # start a new batch
+            b = 0

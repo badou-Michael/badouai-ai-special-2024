@@ -1,0 +1,35 @@
+import numpy as np
+
+if __name__ == "__main__":
+    X = np.array([[10, 15, 29],
+                  [15, 46, 13],
+                  [23, 21, 30],
+                  [11, 9, 35],
+                  [42, 45, 11],
+                  [9, 48, 5],
+                  [11, 21, 14],
+                  [8, 5, 15],
+                  [11, 12, 21],
+                  [21, 20, 25]])
+
+    # 中心化
+    centerX = X - [np.mean(attr) for attr in X.T]
+    # print(centerX)
+    # 协方差矩阵
+    ns = np.shape(X)[0]
+    C = np.dot(centerX.T, centerX) / (ns - 1)
+    # print(C)
+    # 求特征值、特征向量
+    tzz, tzxl = np.linalg.eig(C)
+    # print(tzxl)
+    index = np.argsort(-tzz)
+    k = 2
+    UT = [tzxl[:, index[i]] for i in range(k)]
+    # 转换矩阵 U
+    U = np.transpose(UT)
+    # print('U:\n', U)
+
+    pca = np.dot(X, U)
+    print(pca)
+
+
