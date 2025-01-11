@@ -1,0 +1,60 @@
+import cv2
+import numpy as np
+
+
+# 均值哈希算法
+def aHash(img):
+    img = cv2.resize(img,(8,8),interpolation=cv2.INTER_CUBIC)
+    gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    s = 0
+    Hash_str = ''
+    for i in range (8):
+        for j in range (8):
+            s = s+gray_img[i,j]
+            avg = s/64
+            if gray_img[i,j]>avg:
+                Hash_str = Hash_str+'1'
+            else:
+                Hash_str = Hash_str+'0'
+    return Hash_str
+
+# 差值哈希算法
+def dHash(img):
+    img = cv2.resize(img, (9, 8), interpolation=cv2.INTER_CUBIC)
+    gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    Hash_str = ''
+    for i in range(8):
+        for j in range(8):
+            if gray_img[i,j]>gray_img[i,j+1]:
+                Hash_str = Hash_str + '1'
+            else:
+                Hash_str = Hash_str + '0'
+    return Hash_str
+
+
+def cmphash(Hash1,Hash2):
+    n = 0
+    if len(Hash1) != len(Hash2):
+        return -1
+    for i in range(len(Hash1)):
+        if Hash1[i] != Hash2[i]:
+            n = n + 1
+    return n
+
+
+img1 = cv2.imread('lenna.png')
+img2 = cv2.imread('photo1.jpg')
+
+Hash1 = aHash(img1)
+Hash2 = aHash(img2)
+print(Hash1)
+print(Hash2)
+n = cmphash(Hash1,Hash2)
+print('均值哈希算法相似度：',n)
+
+Hash1= dHash(img1)
+Hash2= dHash(img2)
+print(Hash1)
+print(Hash2)
+n = cmphash(Hash1,Hash2)
+print('差值哈希算法相似度：',n)

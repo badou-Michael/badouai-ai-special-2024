@@ -24,7 +24,7 @@ for i in range(height):
             binary_image[i, j] = 1
 
 #将binary_image转换回uint8类型，以便显示
-binary_image_uint8 = (binary_image * 255).astype(np.uint8)
+binary_image = (binary_image * 255).astype(np.uint8)
 
 #显示灰度图像和二值图像
 cv2.imshow('Gray Image', gray_image)

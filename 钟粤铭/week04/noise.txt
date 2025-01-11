@@ -1,0 +1,57 @@
+# 高斯噪声
+import cv2
+import random
+
+def GaussianNoise(img, means, sigma, percentage):
+    NoiseImg = img
+    NoiseNum = int(percentage * img.shape[0] * img.shape[1])
+    for i in range(NoiseNum):
+        randX = random.randint(0, img.shape[0] - 1)
+        randY = random.randint(0, img.shape[1] - 1)
+        NoiseImg[randX, randY] = NoiseImg[randX, randY] + random.gauss(means, sigma)
+        if NoiseImg[randX, randY] < 0:
+            NoiseImg[randX, randY] = 0
+        elif NoiseImg[randX, randY] > 255:
+            NoiseImg[randX, randY] = 255
+        return NoiseImg
+
+
+img = cv2.imread("./lenna.png", 0)
+img_new = GaussianNoise(img, 2, 4, 0.8)
+cv2.imshow("new_window", img_new)
+cv2.waitKey(0)
+
+
+
+---------------------------------------------------------------------------------------------------------------------------------------
+#椒盐噪声
+import cv2
+import random
+
+def GaussianNoise(img,  percentage):
+    NoiseImg = img
+    NoiseNum = int(percentage * img.shape[0] * img.shape[1])
+    for i in range(NoiseNum):
+        randX = random.randint(0, img.shape[0] - 1)
+        randY = random.randint(0, img.shape[1] - 1)
+        if random.random() <= 0.5:
+            NoiseImg[randX, randY] = 0
+        else:
+            NoiseImg[randX, randY] = 1
+        return NoiseImg
+
+img = cv2.imread("./lenna.png",0)
+img_new = GaussianNoise(img, 0.8)
+cv2.imshow("new_window", img_new)
+cv2.waitKey(0)
+
+---------------------------------------------------------------------------------------------------------------------------------------
+# api实现噪声
+import cv2
+from skimage import util
+
+img = cv2.imread("./lenna.png")
+api_noise_gaussian = util.random_noise(img,mode="poisson")
+cv2.imshow("new_window",api_noise_gaussian)
+cv2.waitKey(0)
+

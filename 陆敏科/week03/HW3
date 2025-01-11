@@ -1,0 +1,223 @@
+from google.colab import drive
+drive.mount('/content/drive')
+
+# 最邻近插值 -- 手动
+import numpy as np
+import cv2
+from google.colab.patches import cv2_imshow
+def function(img):
+  h, w, channels = img.shape
+  emptyImage = np.zeros((800, 800, channels), dtype = np.uint8)
+  sh = 800/h
+  sw = 800/w
+  for i in range(800):
+    for j in range(800):
+      x = int(i/sh + 0.5)
+      y = int(j/sw + 0.5)
+      emptyImage[i, j] = img[x, y]
+  return emptyImage
+
+img = cv2.imread('/content/drive/My Drive/lenna.png')
+zoom = function(img)
+print(zoom)
+print(zoom.shape)
+cv2_imshow(zoom)
+cv2_imshow(img)
+# cv2.waitKey(0) #以便用户可以看到窗口中的内容而不会立即关闭
+
+
+
+
+
+
+# 最邻近插值 -- 调包（cv2.resize）
+resized_img = cv2.resize(img, (800,800), interpolation=cv2.INTER_NEAREST)
+cv2_imshow(resized_img)
+cv2_imshow(img)
+
+
+
+
+
+
+# 双线性插值 - 手动
+def bilinear_interpolation(img, out_dim):
+
+  src_h, src_w,channels = img.shape
+  dst_h, dst_w = out_dim[1], out_dim[0]
+  print('src_h, src_w = ', src_h, src_w) 
+  print('dst_h, dst_w = ', dst_h, dst_w)
+
+  if src_h == dst_h and src_w == dst_w:
+    return img.copy
+
+  dst_img = np.zeros((dst_h, dst_w, 3), dtype = np.uint8)
+  scale_x, scale_y = float(src_w) / dst_w, float(src_h) / dst_h
+  for i in range(channels):
+    for dst_y in range(dst_h):
+      for dst_x in range(dst_w):
+        # geometric center symmetry
+        src_x = (dst_x + 0.5) * scale_x - 0.5
+        src_y = (dst_y + 0.5) * scale_y - 0.5
+
+        # find the coordinates of the points which will be used to compute the interpolation
+        src_x0 = int(np.floor(src_x))  # np.floor() round down
+        src_x1 = min(src_x0 + 1, src_w - 1)  # boundary(0 ~ src_w -1)
+        src_y0 = int(np.floor(src_y))
+        src_y1 = min(src_y0 + 1, src_h - 1)
+
+        # calculate the interpolation
+        temp0 = (src_x1 - src_x) * img[src_y0,src_x0,i] + (src_x - src_x0) * img[src_y0,src_x1,i]
+        temp1 = (src_x1 - src_x) * img[src_y1,src_x0,i] + (src_x - src_x0) * img[src_y1,src_x1,i]
+        dst_img[dst_y,dst_x,i] = int((src_y1 - src_y) * temp0 + (src_y - src_y0) * temp1)
+  return dst_img
+
+if __name__ == '__main__':
+  img = cv2.imread('/content/drive/My Drive/lenna.png')
+  dst = bilinear_interpolation(img,(800,800))
+  cv2_imshow(dst)
+  cv2.waitKey()
+
+
+
+
+
+
+# 双线性插值 - 调包
+resized_img = cv2.resize(img, (800,800), interpolation=cv2.INTER_LINEAR)
+cv2_imshow(resized_img)
+
+
+
+
+
+
+from matplotlib import pyplot as plt
+
+'''
+calcHist—计算图像直方图
+函数原型：calcHist(images, channels, mask, histSize, ranges, hist=None, accumulate=None)
+images：图像矩阵，例如：[image]
+channels：通道数，例如：0
+mask：掩膜，一般为：None
+histSize：直方图大小，一般等于灰度级数
+ranges：横轴范围
+'''
+
+# 灰度图像
+img = cv2.imread('/content/drive/My Drive/lenna.png')
+gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+# cv2_imshow(gray)
+
+# 计算灰度直方图 -- 方法一
+plt.figure()
+plt.hist(gray.ravel(), 256)
+plt.show()
+print(gray.ravel())
+
+# 计算灰度直方图 -- 方法二
+hist = cv2.calcHist([gray], [0], None, [256], [0, 256])
+plt.figure()
+plt.title('Grayscale Histogram')
+plt.xlabel('Bins')
+plt.ylabel('# of Pixels')
+plt.plot(hist)
+plt.xlim([0, 256])
+plt.show()
+
+
+
+
+
+
+# 彩色图像直方图方法一
+# 类似于灰度图，只不过拆成三个channel，一一计算直方图
+img = cv2.imread('/content/drive/My Drive/lenna.png')
+# cv2_imshow(img)
+
+channels = cv2.split(img) # split 3 channels
+colors = ('b', 'g', 'r')
+
+plt.figure()
+plt.title('Flattened Color Histogram')
+plt.xlabel('Bins')
+plt.ylabel('# of Pixels')
+
+for (channel, color) in zip(channels, colors):     # zip() 内置函数，用于将多个可迭代对象打包成一个元组
+  plt.hist(channel.ravel(), 256, color = color)
+  plt.xlim([0, 256])
+plt.show()
+
+
+# 彩色图像直方图方法二
+img = cv2.imread('/content/drive/My Drive/lenna.png')
+# cv2_imshow(img)
+
+channels = cv2.split(img) # split 3 channels
+colors = ('b', 'g', 'r')
+plt.figure()
+plt.title('Flattened Color Histogram')
+plt.xlabel('Bins')
+plt.ylabel('# of Pixels')
+
+for (channel, color) in zip(channels, colors):
+  hist = cv2.calcHist([channel],[0], None, [256], [0, 256])
+  plt.plot(hist, color = color)
+  plt.xlim([0, 256])
+plt.show()
+
+
+
+
+
+
+
+
+
+# 灰度直方图均衡化
+
+'''
+equalizeHist—直方图均衡化
+函数原型： equalizeHist(src, dst=None)
+src：图像矩阵(单通道图像)
+dst：默认即可
+'''
+
+# 获取灰度图像
+img = cv2.imread('/content/drive/My Drive/lenna.png', 1) # 1:彩色 0:灰度 -1:透明度
+gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+# cv2_imshow(gray)
+
+dst = cv2.equalizeHist(gray)
+hist = cv2.calcHist([dst], [0], None, [256], [0, 256]) # 计算直方图频数
+
+plt.figure()
+plt.hist(dst.ravel(), 256)
+plt.show()
+
+cv2_imshow(np.hstack([gray, dst]))
+# cv2.waitKey(0)
+
+
+
+
+
+
+
+
+
+
+# 彩色直方图均衡化
+# 同理，拆开每一条通道分别均衡化
+
+img = cv2.imread('/content/drive/My Drive/lenna.png', 1) # 1:彩色 0:灰度 -1:透明度
+
+
+(b, g, r) = cv2.split(img)
+bH = cv2.equalizeHist(b)
+gH = cv2.equalizeHist(g)
+rH = cv2.equalizeHist(r)
+
+result = cv2.merge((bH, gH, rH))
+cv2_imshow(np.hstack([img, result]))
+# cv2.waitKey(0)

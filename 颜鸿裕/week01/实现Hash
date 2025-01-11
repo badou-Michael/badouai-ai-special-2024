@@ -1,0 +1,55 @@
+import cv2
+import numpy as np
+#均值Hash
+def aHash(img):
+    img = cv2.resize(img,(8,8),cv2.INTER_LINEAR)
+    gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+
+    avg = np.mean(gray)
+    hash = ""
+    for i in range(8):
+        for j in range(8):
+            if gray[i,j] > 1:
+                hash = hash + "1"
+            else:
+                hash = hash + "0"
+    return hash
+
+#插值Hash
+def dHash(img):
+    img = cv2.resize(img,(9,8),cv2.INTER_LINEAR)
+    gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+
+    hash = ""
+    for i in range(8):
+        for j in range(8):
+            if gray[i,j] > gray[i,j+1]:
+                hash = hash + "1"
+            else:
+                hash = hash + "0"
+    return hash
+
+#Hash值对比
+def comhash(hash1,hash2):
+    if len(hash1) != len(hash2):
+        return -1
+
+    n = 0
+    for i in range(len(hash1)):
+        if hash1[i] != hash2[i]:
+            n += 1
+    return n
+
+img1 = cv2.imread("lenna.png")
+img2 = cv2.imread("lenna.png")
+hash1 = aHash(img1)
+hash2 = aHash(img2)
+n = comhash(hash1,hash2)
+print(n)
+
+img1 = cv2.imread("lenna.png")
+img2 = cv2.imread("lenna.png")
+hash1 = dHash(img1)
+hash2 = dHash(img2)
+n = comhash(hash1,hash2)
+print(n)

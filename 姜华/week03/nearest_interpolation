@@ -1,0 +1,46 @@
+import cv2
+import numpy as np
+
+"""
+    nearest interpolation  algorithm
+    author: jiang hua
+    createDate: 2024-09-10
+"""
+
+
+def nearest_interpolation(path, scale):
+    img = cv2.imread(path)
+    sh, sw, chnl = img.shape
+    dh, dw = scale
+    hscale = dh / sh
+    wscale = dw / sw
+    dimg = np.zeros([dh, dw, chnl], img.dtype)
+    for i in range(dh):
+        for j in range(dw):
+            _sh = int(i / hscale)
+            _sw = int(j / wscale)
+            dimg[i, j] = img[_sh, _sw]
+    return dimg
+
+
+def nearest_interpolation1(path, scale):
+    img = cv2.imread(path)
+    sh, sw, chnl = img.shape
+    dh, dw = scale
+    hscale = dh / sh
+    wscale = dw / sw
+    dimg = np.zeros([dh, dw, chnl], img.dtype)
+    for i in range(dh):
+        for j in range(dw):
+            _sh = int((i + 0.5) / hscale - 0.5)
+            _sw = int((j + 0.5) / wscale - 0.5)
+            dimg[i, j] = img[_sh, _sw]
+    return dimg
+
+
+if __name__ == "__main__":
+    dimg = nearest_interpolation("lenna.png", (800, 800))
+    dimg1 = nearest_interpolation1("lenna.png", (800, 800))
+    cv2.imshow("dimg", dimg)
+    cv2.imshow("dimg1", dimg1)
+    cv2.waitKey(0)

@@ -1,0 +1,55 @@
+'''
+‌归一化‌：
+将样本的特征值转换到同一量纲下，通常映射到[0,1]或者[-1,1]区间内。
+归一化主要依赖于变量的极值，因此对异常值有一定的鲁棒性（归一化后异常值大小也被限死）。
+在深度学习中，由于激活函数的输出范围有限，通常需要对输入数据进行归一化。
+
+标准化‌：
+通过求z-score的方法，将数据转换为标准正态分布。
+标准化不仅依赖于变量的极值，还与整体样本的分布相关，因此能更好地保持样本间的距离，适合于数据接近正态分布的情况。但对异常值敏感（异常值会改变标准化后正常数据的分布）
+许多机器学习算法（如线性回归、逻辑回归、支持向量机等）在设计时假设输入数据是正态分布的。
+'''
+
+import numpy as np
+
+#定义一个z-score标准化的函数（均值变成0，标准差变成1）
+def z_score(x):
+    u = x.mean(axis = 0)
+    sigma = x.std(axis = 0)
+    print('各列均值：\n', u)
+    print('各列标准差\n', sigma)
+    for j in range(x.shape[1]):
+        x[:, j] = (x[:, j] - u[j]) / sigma[j]
+    return x
+
+#定义一个最大最小值归一化[0,1]的函数
+def Normalization1(x):
+    ma = x.max(axis = 0)
+    mi = x.min(axis = 0)
+    print('各列最大值：\n', ma)
+    print('各列最小值：\n', mi)
+    for j in range(x.shape[1]):
+        x[:, j] = (x[:, j] - mi[j]) / (ma[j] - mi[j])
+    return x
+
+#定义一个归一化[-1,1]的函数
+def Normalization2(x):
+    ma = x.max(axis = 0)
+    mi = x.min(axis = 0)
+    m = x.mean(axis = 0)
+    print('各列最大值：\n', ma)
+    print('各列最小值：\n', mi)
+    print('各列均值：\n', m)
+    for j in range(x.shape[1]):
+        x[:, j] = (x[:, j] - m[j]) / (ma[j] - mi[j])
+    return x
+
+x = np.array([[1,2,3], [4,5,6], [7,8,9]], dtype=np.float32)
+print('原始数据：\n', x)
+n1 = z_score(x.copy())
+print('z-score标准化后数据:\n', n1)
+n2 = Normalization1(x.copy())
+print('最大最小值归一化后数据:\n', n2)
+n3 = Normalization2(x)
+print('[-1,1]归一化后数据:\n', n3)
+

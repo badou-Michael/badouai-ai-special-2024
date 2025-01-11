@@ -1,0 +1,30 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.cluster import KMeans
+
+# 设置随机种子，确保结果可重复性
+np.random.seed(0)
+
+# 生成4个聚类的数据
+cluster_1 = np.random.normal(loc=[0, 0], scale=0.5, size=(100, 2))
+cluster_2 = np.random.normal(loc=[2, 2], scale=0.5, size=(100, 2))
+cluster_3 = np.random.normal(loc=[-2, 2], scale=0.5, size=(100, 2))
+cluster_4 = np.random.normal(loc=[0, -2], scale=0.5, size=(100, 2))
+
+# 合并数据集
+X = np.vstack((cluster_1, cluster_2, cluster_3, cluster_4))
+
+# 创建K-Means模型并训练
+kmeans = KMeans(n_clusters=4)
+kmeans.fit(X)
+
+# 获取聚类标签
+labels = kmeans.labels_
+
+# 获取聚类中心
+centers = kmeans.cluster_centers_
+
+# 绘制原始数据点和聚类中心
+plt.scatter(X[:, 0], X[:, 1], c=labels)
+plt.scatter(centers[:, 0], centers[:, 1], marker='*', s=200, c='red')
+plt.show()

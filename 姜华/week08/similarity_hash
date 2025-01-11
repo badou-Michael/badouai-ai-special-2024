@@ -1,0 +1,52 @@
+"""
+    实现通过均值哈希或差值哈希比较图片的相似度
+"""
+import cv2
+import numpy as np
+
+
+def get_avg_hash_code(img):
+    img = cv2.imread(img)
+    scale_img = cv2.resize(img,(8,8),interpolation=cv2.INTER_LINEAR)
+    gray_img = cv2.cvtColor(scale_img,cv2.COLOR_BGR2GRAY)
+    avg_v = np.mean(gray_img)
+    hash_code = ""
+    for i in range(8):
+        for j in range(8):
+            hash_code += "1" if gray_img[i,j] > avg_v else "0"
+    return hash_code
+
+
+def get_dif_hash_code(img):
+    img = cv2.imread(img)
+    scale_img = cv2.resize(img,(9,8),interpolation=cv2.INTER_LINEAR)
+    gray_img = cv2.cvtColor(scale_img,cv2.COLOR_BGR2GRAY)
+    hash_code = ""
+    for i in range(8):
+        for j in range(8):
+            hash_code += "1" if gray_img[i,j] > gray_img[i,j+1] else "0"
+    return hash_code
+
+
+def compare_hash_code(code1, code2):
+    assert len(code1) == len(code2)
+    n = 0
+    for i in range(len(code1)):
+        if code1[i] != code2[i]:
+            n += 1
+    return n
+
+
+if '__main__' == __name__:
+    # 均值哈希
+    # code1 = get_avg_hash_code("lenna.png")
+    # code2 = get_avg_hash_code("gaussian_img.png")
+    # dis_num = compare_hash_code(code1,code2)
+    # print(dis_num)
+    # 差值哈希
+    code1 = get_dif_hash_code("lenna.png")
+    code2 = get_dif_hash_code("gaussian_img.png")
+    dis_num = compare_hash_code(code1,code2)
+    print(dis_num)
+
+

@@ -1,0 +1,56 @@
+
+#直方图均衡化 预期参数为灰度图
+def histogram_equalization(image:np.ndarray):
+    vals, counts = np.unique(image, return_counts=True)
+    # 像素点个数
+    pix_count = image.shape[0] * image.shape[1]
+    # 当前计算过的像素点总数
+    cur_total_count = 0
+    #存储原像素值到新像素值的映射
+    mapping = {}
+    for value, count in zip(vals, counts):
+        cur_total_count += count
+        q = (cur_total_count / pix_count * 256 - 1)
+        q = q if q > 0 else 0
+        mapping[value] = q
+        print(f"值 {value} 出现了 {count} 次，均衡化后的值为 {q}")
+    return np.vectorize(lambda x : mapping[x])(image)
+
+image = cv2.imread("img1.png")
+cv2.imshow('原图', image)
+
+nearest_image = nearest_interpolation(image, (200, 209))
+bilinear_image = optimized_bilinear_interpolation(image, (200, 200))
+
+grey_image = np.dot(image, ([0.11, 0.59, 0.30]))
+#调暗
+grey_image *= 0.5
+grey_image[0] = 255
+
+new_grey_image = histogram_equalization(grey_image)
+print(new_grey_image)
+
+# 设置字体为 SimHei
+plt.rcParams['font.family'] = 'SimHei'
+# 创建一个 2x2 的子图
+fig, axs = plt.subplots(2, 2, figsize=(8, 8))
+# 将所有子图的坐标轴关闭
+for ax in axs.flat:
+    ax.axis('off')
+
+# 在每个子图上显示图片
+axs[0, 0].imshow(cv2.cvtColor(nearest_image, cv2.COLOR_BGR2RGB), cmap='gray')
+axs[0, 0].set_title('最邻近插值')
+
+axs[0, 1].imshow(cv2.cvtColor(bilinear_image, cv2.COLOR_BGR2RGB), cmap='gray')
+axs[0, 1].set_title('双线性插值')
+
+axs[1, 0].imshow(grey_image, cmap='gray')
+axs[1, 0].set_title('灰度图')
+
+axs[1, 1].imshow(new_grey_image, cmap='gray')
+axs[1, 1].set_title('均衡化后灰度图')
+
+plt.show()
+cv2.waitKey(0)
+ 

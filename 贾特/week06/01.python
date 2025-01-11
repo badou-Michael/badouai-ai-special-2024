@@ -1,0 +1,17 @@
+import cv2
+import numpy as np
+
+img = cv2.imread("lenna.png")
+
+result = img.copy()
+
+src = np.float32([[21,77],[25,45],[422,512],[426,378]])
+dst = np.float32([[29,84],[55,45],[99,67],[248,415]])
+
+
+m = cv2.getPerspectiveTransform(src,dst)
+
+result = cv2.warpPerspective(result, m , (248,415))
+cv2.imshow("src",src)
+cv2.imshow("result", result)
+cv2.waitKey(0)

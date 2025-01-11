@@ -1,0 +1,61 @@
+from tensorflow.keras.datasets import mnist
+
+'''1、输入数据及处理'''
+(train_images, train_labels),(test_images,test_labels) = mnist.load_data()
+print('train_images.shape = ', train_images.shape)
+print('train_labels = ', train_labels)
+print('len = ', len(train_images))
+print('test_images.shape = ', test_images.shape)
+print('test_labels = ', test_labels)
+
+# 归一化
+train_images = train_images.reshape((60000,28*28)) # 3->2
+train_images = train_images.astype('float32')/255    # 浮点数提高精度
+
+test_images = test_images.reshape((10000,28*28))
+test_images = test_images.astype('float32')/255
+
+# 将训练标签转化为 one hot 编码
+from tensorflow.keras.utils import to_categorical
+train_labels = to_categorical(train_labels)
+test_labels = to_categorical(test_labels)
+
+'''2、搭建神经网络'''
+from tensorflow.keras import models
+from tensorflow.keras import layers
+
+network = models.Sequential()    # 线性堆叠模型
+network.add(layers.Dense(512,activation='relu',input_shape=(28*28,)))
+network.add(layers.Dense(10,activation='softmax'))
+
+
+# network.compile 方法用于配置模型的训练过程，选择优化器、损失函数、评估指标
+network.compile(optimizer='rmsprop',loss='categorical_crossentropy',metrics=['accuracy'])
+
+'''3、训练'''
+network.fit(train_images,train_labels,epochs=5,batch_size=128)
+
+'''4、评估模型 -> live_data测试'''
+test_loss , test_acc = network.evaluate(test_images, test_labels, verbose=1) # verbose=1 显示进度条
+print('test_loss', test_loss)
+print('test_acc', test_acc)
+
+'''5、测试'''
+(train_images, train_labels),(test_images,test_labels) = mnist.load_data()
+sample = test_images[0]
+import matplotlib.pyplot as plt
+import numpy as np
+plt.imshow(sample, cmap=plt.cm.binary)
+# plt.show()
+
+test_images = test_images.reshape((10000,28*28))
+res = network.predict(test_images)
+predicted_labels = np.argmax(res, axis=1)  # np.argmax 常用于将模型的预测结果转换为具体的类别标签
+print('预测的结果的形状：', res.shape)
+print('前五个样本的预测结果：', res[:5])
+print('前五个样本的预测类别：', predicted_labels[0:5])
+
+for i in range(res[0].shape[0]):
+    if (res[0][i] == 1):
+        print('the number for the picture is :', i)
+        break

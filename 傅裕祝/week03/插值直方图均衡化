@@ -1,0 +1,99 @@
+import numpy as  np
+import cv2
+from matplotlib import pyplot as plt
+
+
+
+# 最邻近插值
+def near(img,H,W):
+    h,w,c=img.shape
+    emptyImg=np.zeros((H,W,c),np.uint8) #将图像放大到800*800
+    sh=H/h
+    sw=W/w
+    for i in range(H):
+        for j in range(W):
+            x=int(i/sh+0.5) #利用原图像h，w 向下取整
+            y=int(j/sw+0.5)
+            emptyImg[i,j]=img[x,y]
+    return emptyImg
+
+# img=cv2.imread("lenna.png")
+# zoom=near(img,800,800)
+# cv2.imshow("nearest interp",zoom)
+# cv2.waitKey(0)
+
+# 双线性插值
+def bilinear(img,dstH,dstW):
+    h,w,c = img.shape
+    if h==dstH and w==dstW:
+        return img.copy()
+    dstImg=np.zeros((dstH,dstW,c),np.uint8)
+    scalex=float(w)/dstW
+    scaley=float(h)/dstH
+    for n in range(c):
+        for dsty in range(dstH):
+            for dstx in range(dstW):
+
+                src_x=(dstx + 0.5) * scalex - 0.5 #原图坐标中心对齐
+                src_y=(dsty + 0.5) * scaley - 0.5
+
+                x0=int(np.floor(src_x))
+                x1=min(x0 + 1,w - 1)
+                y0=int(np.floor(src_y))
+                y1=min(y0 + 1,h - 1)
+
+                temp0 = (x1 - src_x) * img[y0, x0, n] + (src_x - x0) * img[y0, x1, n]
+                temp1 = (x1 - src_x) * img[y1, x0, n] + (src_x - x0) * img[y1, x1, n]
+                dstImg[dsty,dstx,n] = int((y1 - src_y) * temp0 + (src_y - y0) * temp1)
+
+    return dstImg
+
+if __name__ == '__main__':
+    img=cv2.imread("lenna.png")
+    dst=bilinear(img,700,700)
+    zoom = near(img,800,800)
+    cv2.imshow("near",zoom)
+    cv2.imshow("bi",dst)
+    cv2.waitKey(0)
+
+
+# 直方图均衡化
+# 灰度图均衡化
+img = cv2.imread("lenna.png")
+gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+img2=cv2.equalizeHist(gray) # 灰度图像直方图均衡化
+# 直方图法二
+hist = cv2.calcHist([gray],[0],None,[256],[0,256])
+
+hist2 = cv2.calcHist([img2],[0],None,[256],[0,256])
+
+
+# 显示灰度直方图
+plt.figure()
+plt.title("Grayscale Histogram")
+plt.hist(gray.ravel(),256)
+plt.show()
+
+plt.figure()
+plt.title("equalizational histogram")
+plt.hist(img2.ravel(),256)
+plt.show()
+
+cv2.imshow("two img",np.hstack((gray,img2)))  #灰度图和直方图均衡化后的图
+cv2.waitKey(0)
+
+
+# 彩色图像直方图均衡化
+def coloreq(img):
+    # 彩色图像均衡化,分解成单通道
+    (b, g, r) = cv2.split(img)
+    B= cv2.equalizeHist(b)
+    G= cv2.equalizeHist(g)
+    R= cv2.equalizeHist(r)
+    # 合并每一个通道
+    result = cv2.merge((B,G,R))
+    return  result
+img=cv2.imread("lenna.png")
+res=coloreq(img)
+cv2.imshow("newimg",np.hstack((img,res)))
+cv2.waitKey(0)

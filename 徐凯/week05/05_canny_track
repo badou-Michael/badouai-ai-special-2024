@@ -1,0 +1,23 @@
+import cv2
+
+
+def Canny_threshold(low_threshold):
+    detected_edges = cv2.Canny(gray, low_threshold, low_threshold*ratio, apertureSize = kernel_size)
+    dst = cv2.bitwise_and(img,img,mask=detected_edges)
+    cv2.imshow('img_canny',dst)
+
+
+low_threshold = 0
+max_low_threshold = 200
+ratio = 3
+kernel_size = 3
+
+img = cv2.imread('lenna.png')
+gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+cv2.namedWindow('img_canny')
+
+cv2.createTrackbar('Min threshold', 'img_canny', low_threshold, max_low_threshold, Canny_threshold)
+
+Canny_threshold(0)  # initialization
+if cv2.waitKey(0) == 27:  # wait for ESC key to exit cv2
+    cv2.destroyAllWindows()

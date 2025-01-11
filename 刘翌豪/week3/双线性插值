@@ -1,0 +1,37 @@
+import numpy as np
+import cv2
+
+def biline(img, size):
+    h, w, channel= img.shape
+    new_h, new_w = size[0],size[1]
+    if h== new_h and w==new_w:
+        return img.copy()
+    fold_h = float(h / new_h)
+    fold_w = float(w / new_w)
+    new_img = np.zeros((new_h, new_w, channel), dtype=np.uint8)
+    for i in range(channel):
+        for new_x in range(new_h):
+            for new_y in range(new_w):
+                #找到新图的坐标对应的原图坐标
+                x, y= (new_x+0.5) * fold_h - 0.5, (new_y+0.5) * fold_w - 0.5
+
+                #定义原图坐标周围的四个坐标点
+                x0 = int(np.floor(x))  #np.floor()返回不大于输入参数的最大整数。（向下取整）
+                     #这里的int必须有，不然后续计算切片会报错
+                x1 = min(x0+1, h-1)
+                y0 = int(np.floor(y))
+                y1 = min(y0+1, w-1)
+
+                #进行双线性插值运算，带入计算公式
+                tem0 = (x1-x)*img[x0,y0,i] + (x-x0)*img[x1,y0,i]  #计算x方向上的两个
+                tem1 = (x1-x)*img[x0,y1,i] + (x-x0)*img[x1,y1,i]
+                new_img[new_x,new_y,i] = int((y1-y)*tem0 + (y-y0)*tem1) #根据新的两个x方向上的点计算y方向
+
+    return new_img
+
+if __name__ == '__main__':
+    image = cv2.imread('lenna.png')
+    image_mod = biline(image,(700,700))
+    cv2.imshow('biline',image_mod)
+    cv2.waitKey()
+    cv2.destroyAllWindows()

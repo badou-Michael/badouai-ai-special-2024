@@ -1,0 +1,37 @@
+"""
+    histogram equalization
+    author: jiang hua
+    create date: 2024-09-12
+"""
+
+
+import cv2
+import matplotlib.pyplot as plt
+
+
+def histogram_equalization(img):
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    cv2.imshow("gray", gray)
+    equal_img = cv2.equalizeHist(gray)
+    cv2.imshow("equal_img", equal_img)
+    cv2.waitKey(0)
+
+    # plt.figure()
+    # plt.hist(gray.ravel(), 256, color="b")
+    # plt.hist(equal_img.ravel(), 256, color="r")
+    # plt.show()
+
+
+def histogram_equalization1(img):
+    tem_img = []
+    for chnl in cv2.split(img):
+        equal_img = cv2.equalizeHist(chnl)
+        tem_img.append(equal_img)
+    _img = cv2.merge(tem_img)
+    cv2.imshow("img", img)
+    cv2.imshow("_img", _img)
+    cv2.waitKey(0)
+
+
+if __name__ == "__main__":
+    histogram_equalization(cv2.imread("lenna.png"))

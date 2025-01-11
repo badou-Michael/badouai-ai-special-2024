@@ -1,0 +1,59 @@
+import tensorflow as tf
+from tensorflow.keras.datasets import mnist
+from tensorflow.keras.layers import Dense, Dropout
+from tensorflow.keras import Sequential
+from tensorflow.keras.utils import to_categorical
+from tensorflow.keras.regularizers import l2
+import numpy as np
+import cv2
+
+#读取训练和测试数据，该数据集共70000张28*28的手写体数字图片，其中60000张训练集，10000张测试集
+(x_train, y_train), (x_test, y_test) = mnist.load_data()
+
+# 初始化网络
+layer = Sequential([
+    Dense(512, activation='relu', input_shape=(28*28,)),
+    Dropout(0.3),
+    Dense(10, activation='softmax')
+])
+# 编译网络，包括神经网络的优化器，损失函数和监控指标
+layer.compile(optimizer='rmsprop', loss='categorical_crossentropy', metrics=['accuracy'])
+# 对于多分类任务应用独热编码将各类转化为1，0
+# label = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+# one_hot_encoded = tf.one_hot(label, depth=10)
+# 可视化独热编码
+# with tf.Session() as sess:
+#     result = sess.run(one_hot_encoded)
+#     print(result)
+# 预处理数据
+# 对输入数据归一化
+x_train = x_train.reshape(60000, 28*28)
+x_train = x_train.astype('float32')/255
+x_test = x_test.reshape(10000, 28*28)
+x_test = x_test.astype('float32')/255
+# 对标签独热编码
+y_train = to_categorical(y_train, 10)
+y_test = to_categorical(y_test, 10)
+layer.fit(x_train, y_train, epochs=4, batch_size=256)
+test_loss, test_acc = layer.evaluate(x_test, y_test)
+print(f"网络误差为{test_loss}")
+print(f"网络预测准确率为{test_acc}")
+# 模型测试
+x = x_test[0, :].reshape(1, 28*28)
+y = layer.predict(x)
+print("数字为：", np.argmax(y))
+# 模型泛化
+# 5.png为黑底白字的手写体图片用以测试模型泛化能力
+img_init = cv2.imread("5.png", 0)
+img = cv2.resize(img_init, (28, 28), interpolation=cv2.INTER_AREA)/255.0
+img = img.astype('float32')
+img_predict = layer.predict(img.reshape(1, 28*28))
+print("数字概率", img_predict)
+print("数字为", np.argmax(img_predict))
+cv2.imshow("原图", img_init)
+cv2.waitKey(0)
+
+
+
+
+

@@ -1,0 +1,33 @@
+"""
+    add salt pepper noise
+    author: jiang hua
+    create date: 2024-09-28
+"""
+import numpy as np
+import cv2
+import copy
+
+def add_salt_pepper_noise(img, scale):
+    h, w = img.shape[:2]
+    pix_num = int(h * w * scale)
+    out_image = img.copy()
+    for pix in range(pix_num):
+        # 随机取x,y
+        y = np.random.randint(h)
+        x = np.random.randint(w)
+        if pix % 2:
+            out_image[y, x] = 0
+        else:
+            out_image[y, x] = 255
+    return out_image
+
+
+if __name__ == "__main__":
+    img = cv2.imread("lenna.png")
+    cv2.imshow("img", img)
+    post_img = add_salt_pepper_noise(img, 0.3)
+    cv2.imshow("post_img", post_img)
+    cv2.waitKey(0)
+
+
+

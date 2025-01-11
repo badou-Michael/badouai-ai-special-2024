@@ -1,0 +1,39 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+def initialize_centroids(data, k):
+    # Randomly select k unique data points as initial centroids
+    indices = np.random.choice(data.shape[0], k, replace=False)
+    return data[indices]
+
+def assign_clusters(data, centroids):
+    # Assign each point to the nearest centroid
+    distances = np.sqrt(((data - centroids[:, np.newaxis]) ** 2).sum(axis=2))
+    return np.argmin(distances, axis=0)
+
+def update_centroids(data, labels, k):
+    # Calculate new centroids as the mean of assigned points
+    new_centroids = np.array([data[labels == i].mean(axis=0) for i in range(k)])
+    return new_centroids
+
+def has_converged(old_centroids, new_centroids, tol=1e-5):
+    # Check if the centroids have moved less than the tolerance
+    return np.all(np.linalg.norm(new_centroids - old_centroids, axis=1) < tol)
+
+def k_means(data, k, max_iters=100):
+    # Step 1: Initialize centroids
+    centroids = initialize_centroids(data, k)
+    
+    for i in range(max_iters):
+        # Step 2: Assign clusters
+        labels = assign_clusters(data, centroids)
+        
+        # Step 3: Update centroids
+        new_centroids = update_centroids(data, labels, k)
+        
+        # Step 4: Check for convergence
+        if has_converged(centroids, new_centroids):
+            break
+        centroids = new_centroids
+    
+    return centroids, labels

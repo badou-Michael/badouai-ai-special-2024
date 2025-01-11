@@ -1,0 +1,28 @@
+import numpy as np
+
+def pca(data, n_components):
+    # 数据标准化
+    mean = np.mean(data, axis=0)
+    centered_data = data - mean
+
+    # 计算协方差矩阵
+    cov_matrix = np.cov(centered_data.T)
+
+    # 计算特征值和特征向量
+    eigenvalues, eigenvectors = np.linalg.eig(cov_matrix)
+
+    # 对特征值进行排序，并选择对应的特征向量
+    sorted_indices = np.argsort(eigenvalues)[::-1]
+    selected_eigenvectors = eigenvectors[:, sorted_indices[:n_components]]
+
+    # 数据降维
+    reduced_data = np.dot(centered_data, selected_eigenvectors)
+
+    return reduced_data
+
+# 示例数据
+data = np.array([[2, 3], [4, 5], [6, 7], [8, 9], [10, 11]])
+
+# 进行 PCA，降维到一维
+reduced_data = pca(data, 1)
+print(reduced_data)

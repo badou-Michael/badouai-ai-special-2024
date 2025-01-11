@@ -1,0 +1,19 @@
+import cv2
+from matplotlib import pyplot as plt
+import matplotlib as mpl
+import numpy as np
+mpl.rcParams["font.sans-serif"]=["SimHei"]
+mpl.rcParams["axes.unicode_minus"]=False
+src=cv2.imread("lenna.png")
+img=cv2.imread("lenna.png",0)
+hist=cv2.calcHist([img],[0],None,[256],[0,256])
+plt.figure()
+plt.title("灰度图像直方图")
+plt.xlabel("Bins像素值的取值区间")
+plt.ylabel("每一像素值在图像中像素总数")
+plt.plot(hist)
+plt.xlim([0,256])
+plt.show()
+eq=cv2.equalizeHist(img)
+cv2.imshow("原图直方图均衡化",np.hstack([img,eq]))
+cv2.waitKey(0)

@@ -1,0 +1,18 @@
+import numpy as np
+import matplotlib.pyplot as plt
+def add_gaussian_noise(data,mean = 0.1, std_dev = 0.1):
+  noise = np.random.normal(mean, std_dev, data.shape)
+  return data + noise
+#示例，画一条直线
+x = np.linspace(0, 10, 100) 
+y = 3 * x + 6
+#添加高斯噪声
+noisy_y = add_gaussian_noise(y)
+#绘制原始数据和添加噪声后的数据
+plt.plot(x,y,label = 'Original data')
+plt.plot(x,noisy_y,label = 'Noisy data')
+plt.legend()
+plt.xlabel('X')
+plt.ylabel('Y')
+plt.title('Adding Gaussian Noise')
+plt.show()

@@ -1,0 +1,93 @@
+import cv2
+import numpy as np
+
+
+def inter_nearest(src_img, dsize):  # desize(宽度,高度)
+    cols, rows = dsize
+    dst_img = np.zeros((rows, cols, 3), np.uint8)
+    scale_x = cols / src_img.shape[1]
+    scale_y = rows / src_img.shape[0]
+    for i in range(rows):
+        for j in range(cols):
+            src_x = int(j / scale_x + 0.5)
+            scr_y = int(i / scale_y + 0.5)
+            dst_img[i, j][0] = src_img[scr_y, src_x][0]
+            dst_img[i, j][1] = src_img[scr_y, src_x][1]
+            dst_img[i, j][2] = src_img[scr_y, src_x][2]
+    return dst_img
+
+
+src_img = cv2.imread("robot.jpg")
+# 将原图缩放为1000*1000
+dst_img = inter_nearest(src_img, (1000, 1000))
+cv2.imshow('new_windows', dst_img)
+cv2.waitKey()
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+import cv2
+import numpy as np
+
+def inter_linear(src_img, dsize):
+    src_height, src_width, channel = src_img.shape
+    dst_width, dst_height = dsize
+    dst_img = np.zeros((dst_height, dst_width, channel), np.uint8)
+    for k in range(channel):
+        for i in range(dst_height):
+            for j in range(dst_width):
+                # 中心点对齐
+                src_x = (j + 0.5) * (src_width / dst_width) - 0.5
+                src_y = (i + 0.5) * (src_height / dst_height) - 0.5
+                # 求出四个点的横纵坐标
+                src_x0 = int(np.floor(src_x))
+                src_y0 = int(np.floor(src_y))
+                src_x1 = min(src_x0 + 1, src_width - 1)
+                src_y1 = min(src_y0 + 1, src_height - 1)
+                # 防呆检查
+                if src_x0 == src_x1:
+                    R1 = src_img[src_y0, src_x0, k]
+                    R2 = src_img[src_y1, src_x0, k]
+                else:
+                    R1 = ((src_x1 - src_x) / (src_x1 - src_x0)) * src_img[src_y0, src_x0, k] + (
+                            (src_x - src_x0) / (src_x1 - src_x0)) * src_img[src_y0, src_x1, k]
+                    R2 = ((src_x1 - src_x) / (src_x1 - src_x0)) * src_img[src_y1, src_x0, k] + (
+                            (src_x - src_x0) / (src_x1 - src_x0)) * src_img[src_y1, src_x1, k]
+                if src_y0 == src_y1:
+                    dst_img[i, j, k] = int(R1)
+                else:
+                    dst_img[i, j, k] = int(
+                        ((src_y1 - src_y) / (src_y1 - src_y0)) * R1 + ((src_y - src_y0) / (src_y1 - src_y0)) * R2)
+
+                # R1 = (src_x1 - src_x) * src_img[src_y0, src_x0, k] +(src_x - src_x0) * src_img[src_y0, src_x1, k]
+                # R2 = (src_x1 - src_x) * src_img[src_y1, src_x0, k] +(src_x - src_x0) * src_img[src_y1, src_x1, k]
+                # dst_img[i, j, k] = int((src_y1 - src_y) * R1 + (src_y - src_y0)  * R2)
+
+    return dst_img
+
+src_img = cv2.imread("robot.jpg")
+dst_img = inter_linear(src_img, (900, 900))
+cv2.imshow("new_windows", dst_img)
+cv2.waitKey()
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+
+src_img = cv2.imread("lenna.png")
+img_gray = cv2.cvtColor(src_img,cv2.COLOR_BGR2GRAY)
+# 灰度图像直方图均衡化
+dst_img = cv2.equalizeHist(img_gray)
+
+plt.figure()
+# dst.ravel()将二维图像数组转换为一维数组，这样plt.hist就可以将其视为数据分布来绘制直方图。256表示直方图的柱子数量，对应于灰度级的数量。
+plt.hist(dst_img.ravel(),256)
+plt.show()
+# np.hstack用于水平堆叠两个图像，以便可以在一个窗口中并排比较它们。
+cv2.imshow("Histogram Equalization",np.hstack([img_gray,dst_img]))
+cv2.waitKey(0)
+
+

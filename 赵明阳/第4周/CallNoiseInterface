@@ -1,0 +1,13 @@
+import numpy as np
+# 示例数据，这里以一个简单的二维数组表示图像
+from noise_interface_module import NoiseInterface
+
+data = np.random.rand(100, 100)
+
+noise_interface = NoiseInterface()
+
+# 添加高斯噪声
+noisy_data_gaussian = noise_interface.add_noise(data, "gaussian", mean=0.2, std_dev=0.3)
+
+# 添加椒盐噪声
+noisy_data_salt_pepper = noise_interface.add_noise(data, "salt_and_pepper", salt_prob=0.1, pepper_prob=0.1)

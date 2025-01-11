@@ -1,0 +1,41 @@
+from tensorflow.keras import models, layers
+from tensorflow.keras.utils import to_categorical
+from tensorflow.keras.datasets import mnist
+import matplotlib.pyplot as plt
+
+#加载数据集：
+(train_images, train_labels), (test_images, test_labels) = mnist.load_data()
+
+#数据预处理（图像数据展平并归一化）（标签进行One-hot编码）：
+train_images = train_images.reshape(60000, 28*28).astype('float32') / 255
+test_images = test_images.reshape(10000, 28*28).astype('float32') / 255
+train_labels = to_categorical(train_labels)
+test_labels = to_categorical(test_labels)
+
+#定义一个用于10分类的神经网络模型：
+network = models.Sequential()
+network.add(layers.Dense(512, activation='relu', input_shape=(28*28,)))
+network.add(layers.Dense(10, activation='softmax'))
+network.compile(optimizer='rmsprop', loss='categorical_crossentropy', metrics=['accuracy'])
+
+#训练模型：
+network.fit(train_images, train_labels, epochs=5, batch_size=128, verbose=1)
+
+#测试并评估模型：
+test_loss, test_acc = network.evaluate(test_images, test_labels, batch_size= 128, verbose=1)
+print('测试损失：\n', test_loss)
+print('测试精度：\n', test_acc)
+
+#对‘新数据’进行分类预测：
+img = test_images[1]
+img_show = img.reshape(28, 28)
+plt.imshow(img_show, cmap='binary')
+
+res = network.predict(img.reshape(1, 28*28)) #传入的要是二维才行
+print('新数据分类标签：\n', res) #输出的标签也是二维
+for i in range(res[0].shape[0]):
+    if res[0][i] == 1:
+        print('该数字为：', i)
+        break
+
+plt.show()

@@ -1,0 +1,97 @@
+import numpy as np
+import scipy.special as ss
+
+
+class NeuralNetWork:
+    #  初始化
+    def __init__(self, input_nodes, hidden_nodes, output_nodes, learning_rate):
+        self.input_nodes = input_nodes
+        self.hidden_nodes = hidden_nodes
+        self.output_nodes = output_nodes
+        self.lr = learning_rate
+
+        self.w_ih = (np.random.normal(0.0, pow(self.hidden_nodes, -0.5), (self.hidden_nodes, self.input_nodes)))
+        self.w_ho = (np.random.normal(0.0, pow(self.output_nodes, -0.5), (self.output_nodes, self.hidden_nodes)))
+
+        self.activation_function = lambda x: ss.expit(x)
+
+        pass
+
+    # 训练
+    def train(self, inputs_list, targets_list):
+        inputs = np.array(inputs_list, ndmin=2).T
+        targets = np.array(targets_list, ndmin=2).T
+
+        hidden_inputs = np.dot(self.w_ih, inputs)
+        hidden_outputs = self.activation_function(hidden_inputs)
+
+        final_inputs = np.dot(self.w_ho, hidden_outputs)
+        final_outputs = self.activation_function(final_inputs)
+
+        output_errors = targets - final_outputs
+        hidden_errors = np.dot(self.w_ho.T, output_errors*final_outputs*(1 - final_outputs))
+
+        self.w_ho += self.lr*np.dot((output_errors*final_outputs*(1-final_outputs)),
+                                    np.transpose(hidden_outputs))
+        self.w_ih += self.lr*np.dot((hidden_errors*hidden_outputs*(1-hidden_outputs)),
+                                    np.transpose(inputs))
+
+        pass
+
+    # 预测、前向传播
+    def query(self, inputs):
+        hidden_inputs = np.dot(self.w_ih, inputs)
+        hidden_outputs = self.activation_function(hidden_inputs)
+
+        final_inputs = np.dot(self.w_ho, hidden_outputs)
+        final_outputs = self.activation_function(final_inputs)
+
+        print(final_outputs)
+        return final_outputs
+
+
+# 输入节点数量、学习率
+input_nodes = 784
+hidden_nodes = 512
+output_nodes = 10
+learning_rate = 0.1
+
+n = NeuralNetWork(input_nodes, hidden_nodes, output_nodes, learning_rate)
+
+# 读取训练数据
+training_data_file = open('dataset/mnist_train.csv','r')
+training_data_list = training_data_file.readlines()
+training_data_file.close()
+
+# 加入epoch
+epochs = 20
+for i in range(epochs):
+    for record in training_data_list:
+        all_values = record.split(',')
+        inputs = (np.asfarray(all_values[1:]))/255.0*0.99+0.01  # 避免sigmod函数在0，1处饱和
+
+        # 设置图片与数值对应关系
+        targets = np.zeros(output_nodes)+0.01
+        targets[int(all_values[0])] = 0.99
+        n.train(inputs, targets)
+
+test_data_file = open('dataset/mnist_test.csv')
+test_data_list = test_data_file.readlines()
+test_data_file.close()
+scores = []
+for record in training_data_list:
+    all_values = record.split(',')
+    correct_number = int(all_values[0])
+    print('该图片对应得数字为：', correct_number)
+    inputs = (np.asfarray(all_values[1:]))/255.0*0.99+0.01
+    outputs = n.query(inputs)
+    label = np.argmax(outputs)
+    print('网络认为图片的数字是：', label)
+    if label == correct_number:
+        scores.append(1)
+    else:
+        scores.append(0)
+print(scores)
+
+scores_array = np.asarray(scores)
+print('perfermance = ', scores_array.sum()/scores_array.size)

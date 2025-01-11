@@ -1,0 +1,42 @@
+import cv2
+import numpy as np
+
+
+# 均值哈希
+class MeanHash:
+    def __init__(self, img1, img2):
+        self.img1 = img1
+        self.img2 = img2
+
+    def hamming_distance(self):
+        reimg1 = cv2.resize(self.img1, (8, 8))
+        reimg2 = cv2.resize(self.img2, (8, 8))
+        # 将大于平均值的置为1，其余置为0
+        reimg1 = (reimg1 > np.mean(reimg1)).astype(np.uint8)
+        reimg2 = (reimg2 > np.mean(reimg2)).astype(np.uint8)
+        nums = np.count_nonzero(reimg1 != reimg2)
+        return nums
+
+# 插值哈希
+class DifferenceHash:
+    def __init__(self, img1, img2):
+        self.img1 = img1
+        self.img2 = img2
+
+    def hamming_distance(self):
+        reimg1 = cv2.resize(self.img1, (8, 9))
+        reimg2 = cv2.resize(self.img2, (8, 9))
+        # 像素值大于后一个置为1
+        reimg1 = (reimg1[:, :-1] > reimg1[:, 1:]).astype(np.uint8)
+        reimg2 = (reimg2[:, :-1] > reimg2[:, 1:]).astype(np.uint8)
+        nums = np.count_nonzero(reimg1 != reimg2)
+        return nums
+
+
+if __name__ == "__main__":
+    image1 = cv2.imread("lenna.png", 0)
+    image2 = cv2.imread("Relke.jpg", 0)
+    diff = DifferenceHash(image1, image2)
+    print(diff.hamming_distance())
+    meanhash = MeanHash(image1, image2)
+    print(meanhash.hamming_distance())

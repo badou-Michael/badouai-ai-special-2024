@@ -1,0 +1,37 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+
+# 归一化到[0,1]区间内
+def Normalization1(data):
+    minimum = np.min(data)
+    maximum = np.max(data)
+    return (data - minimum) / (maximum - minimum)
+
+
+# 归一化到[-1,1]区间内
+def Normalization2(data):
+    minimum = np.min(data)
+    maximum = np.max(data)
+    mean_value = np.mean(data)
+    return (data - mean_value) / (maximum - minimum)
+
+
+# Z-score标准化
+def Standardization(data):
+    mean_value = np.mean(data)
+    sigma = np.var(data)
+    return (data - mean_value) / sigma
+
+
+if __name__ == "__main__":
+    data = np.random.randint(0, 50, (25, 2))
+    data_normalization1 = Normalization1(data)
+    data_normalization2 = Normalization2(data)
+    data_standardization = Standardization(data)
+    fig, ax = plt.subplots(2, 2)
+    ax[0, 0].scatter(data[:, 0], data[:, 1], c='k')
+    ax[0, 1].scatter(data_normalization1[:, 0], data_normalization1[:, 1], c='g')
+    ax[1, 0].scatter(data_normalization2[:, 0], data_normalization2[:, 1], c='b')
+    ax[1, 1].scatter(data_standardization[:, 0], data_standardization[:, 1], c='r')
+    plt.show()

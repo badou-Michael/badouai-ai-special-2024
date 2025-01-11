@@ -1,0 +1,16 @@
+import cv2 as cv
+import numpy as np
+from PIL import Image
+from skimage import util
+
+def random_noise(image, mode='gaussian', seed=None, clip=True, **kwargs):
+#功能：为浮点型图片添加各种随机噪声
+
+
+img = cv.imread("D:\lenna.png")
+noise_gs_img=util.random_noise(img,mode='poisson')
+
+cv.imshow("source", img)
+cv.imshow("lenna",noise_gs_img)
+#cv.imwrite('lenna_noise.png',noise_gs_img)
+cv.waitKey(0)

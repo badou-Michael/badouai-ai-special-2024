@@ -1,0 +1,64 @@
+import numpy as np
+class pca(object):
+    def __init__(self,X,K):
+        self.X = X
+        self.K = K
+        self.central = []
+        self.xie = []
+        self.U = []
+        self.Z = []
+
+        self.central = self._centralized()
+        self.xie = self._xie()
+        self.U = self._trans()
+        self.Z = self._Z()
+
+    def _centralized(self):
+        '''去中心化
+        1.计算各特征均值
+        2.将各特征值减去均值
+        '''
+        centra = []
+        mean = np.array([np.mean(attr) for attr in self.X.T])
+        centra = self.X - mean
+        return centra
+
+    def _xie(self):
+        '''计算协方差
+        根据公式cov(X,Y)=(Xi-Xmean)(Yi-Ymean)/(n-1)
+        简化后D=Z.T*Z/m'''
+        num = np.shape(self.central)[0]
+        cov = np.dot(self.central.T,self.central)/ (num-1)
+        return cov
+
+    def _trans(self):
+        '''计算特征值和特征向量
+        1.直接利用np.linalg.eig计算特征值和特征向量
+        2.将特征值按照从大到小顺序排列，根据最终所需维度选择特征值最大的k个，argsort对数值对应的序号进行排序
+        3.获取特征值对应的特征向量
+        '''
+        a,b = np.linalg.eig(self.xie)
+        seq = np.argsort(-1*a)
+        UT=[b[:,seq[i]] for i in range(self.K)]
+        U = np.transpose(UT)
+        return U
+
+    def _Z(self):
+        '''按照X*W计算降维后的矩阵'''
+        Z = np.dot(self.X,self.U)
+        print(Z)
+        return Z
+
+if __name__ == '__main__':
+    X = np.array([[10, 15, 29],
+                  [15, 46, 13],
+                  [23, 21, 30],
+                  [11, 9, 35],
+                  [42, 45, 11],
+                  [9, 48, 5],
+                  [11, 21, 14],
+                  [8, 5, 15],
+                  [11, 12, 21],
+                  [21, 20, 25]])
+    K = X.shape[1] - 1 #需要降至几维
+    result = pca(X,K)

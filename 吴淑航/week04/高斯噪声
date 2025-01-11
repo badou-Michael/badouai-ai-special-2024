@@ -1,0 +1,23 @@
+import cv2
+import numpy as np
+import random
+
+def GsNOISY(img,mean,sigma,percentage):
+    gsnoisy=img
+    gsarea=int(percentage*img.shape[0]*img.shape[1])
+    # 保证把该区域都循环完整
+    for i in range(gsarea):
+        # 对每个像素点进行处理
+        randX=random.randint(0,img.shape[0]-1) # 随机生成某一行 行的范围0-行数减一
+        randY=random.randint(0,img.shape[1]-1) # 列数同理
+        gsnoisy[randX,randY] = img[randX,randY]+random.gauss(mean,sigma)
+        if gsnoisy[randX,randY]>255:
+            gsnoisy[randX,randY]=255
+        elif gsnoisy[randX,randY]<0:
+            gsnoisy[randX,randY]=0
+    return gsnoisy
+
+img=cv2.imread("lenna.png",0) # 以灰度形式加载图像/单通道
+result=GsNOISY(img,2,4,0.8)
+cv2.imshow("高斯噪声",result)
+cv2.waitKey()

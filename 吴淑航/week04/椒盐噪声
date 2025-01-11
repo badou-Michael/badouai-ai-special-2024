@@ -1,0 +1,21 @@
+import cv2
+import numpy as np
+import random
+
+def func1(img,percentage):
+    imgnoise=img
+    imgnoisenum=int(percentage*np.shape(imgnoise)[0]*np.shape(imgnoise)[1])
+    for i in range(imgnoisenum):
+        randX=random.randint(0,np.shape(imgnoise)[0]-1)
+        randY=random.randint(0,np.shape(imgnoise)[1]-1)
+        # random.random() 生成的浮点数在0-1之间
+        if random.random()<=0.5:
+            imgnoise[randX,randY]=0
+        else:
+            imgnoise[randX,randY]=255
+    return imgnoise
+
+img=cv2.imread("lenna.png",0)
+result=func1(img,0.8)
+cv2.imshow("result",result)
+cv2.waitKey(0)

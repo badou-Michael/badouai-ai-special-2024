@@ -1,0 +1,80 @@
+#高斯噪声
+import numpy as np
+import cv2
+from numpy import shape 
+import random
+def GaussianNoise(src,means,sigma,percetage):
+    NoiseImg=src
+    NoiseNum=int(percetage*src.shape[0]*src.shape[1])
+    for i in range(NoiseNum):
+        randX=random.randint(0,src.shape[0]-1) 
+        randY=random.randint(0,src.shape[1]-1)
+        NoiseImg[randX,randY]=NoiseImg[randX,randY]+random.gauss(means,sigma)
+        if  NoiseImg[randX, randY]< 0:
+            NoiseImg[randX, randY]=0
+        elif NoiseImg[randX, randY]>255:
+            NoiseImg[randX, randY]=255
+    return NoiseImg
+img = cv2.imread('lenna.png',0)
+img1 = GaussianNoise(img,2,4,0.8)
+img = cv2.imread('lenna.png')
+img2 = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+#cv2.imwrite('lenna_GaussianNoise.png',img1)
+cv2.imshow('source',img2)
+cv2.imshow('lenna_GaussianNoise',img1)
+cv2.waitKey(0)
+
+#椒盐噪声
+import numpy as np
+import cv2
+from numpy import shape
+import random
+def  fun1(src,percetage):     
+    NoiseImg=src    
+    NoiseNum=int(percetage*src.shape[0]*src.shape[1])    
+    for i in range(NoiseNum): 
+	    randX=random.randint(0,src.shape[0]-1)       
+	    randY=random.randint(0,src.shape[1]-1)   
+	    if random.random()<=0.5:           
+	    	NoiseImg[randX,randY]=0       
+	    else:            
+	    	NoiseImg[randX,randY]=255    
+    return NoiseImg
+img=cv2.imread('lenna.png',0)
+img1=fun1(img,0.8)
+img = cv2.imread('lenna.png')
+img2 = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+cv2.imshow('source',img2)
+cv2.imshow('lenna_PepperandSalt',img1)
+cv2.waitKey(0)
+
+#噪声接口调用
+import cv2 as cv
+import numpy as np
+from PIL import Image
+from skimage import util
+img = cv.imread("lenna.png")
+noise_gs_img=util.random_noise(img,mode='poisson')
+cv.imshow("source", img)
+cv.imshow("lenna",noise_gs_img)
+cv.waitKey(0)
+cv.destroyAllWindows()
+
+#PCA
+import numpy as np
+class PCA():
+    def __init__(self,n_components):
+        self.n_components = n_components
+    def fit_transform(self,X):
+        self.n_features_ = X.shape[1]
+        X = X - X.mean(axis=0)
+        self.covariance = np.dot(X.T,X)/X.shape[0]
+        eig_vals,eig_vectors = np.linalg.eig(self.covariance)
+        idx = np.argsort(-eig_vals)
+        self.components_ = eig_vectors[:,idx[:self.n_components]]
+        return np.dot(X,self.components_)
+ 
+pca = PCA(n_components=2)
+X = np.array([[-1,8,34,-1], [-5,9,32,-1], [6,8,89,-2], [7,9,54,1], [2,10,32,1], [5,3,98,6]]
+newX=pca.fit_transform(X)
+print(newX)   
