@@ -171,7 +171,7 @@ class OpenPoseImpl(BaseModel):
         
         
 class UNetImpl(BaseModel):
-    model = UNet(n_channels=3, n_classes=1)
+    model = UNet(n_channels=1, n_classes=1)
     need_train = True
     
     def propressing(self):
