@@ -1,0 +1,63 @@
+import tensorflow as tf
+from tensorflow.keras import datasets, layers, models
+import numpy as np
+import matplotlib.pyplot as plt
+
+# 加载CIFAR-10数据集
+(x_train, y_train), (x_test, y_test) = datasets.cifar10.load_data()
+
+# 数据归一化到[0, 1]范围
+x_train, x_test = x_train / 255.0, x_test / 255.0
+
+# 数据增强预处理
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+
+datagen = ImageDataGenerator(
+    rotation_range=20,           # 随机旋转角度
+    width_shift_range=0.2,       # 水平平移
+    height_shift_range=0.2,      # 垂直平移
+    shear_range=0.2,             # 剪切变换
+    zoom_range=0.2,              # 随机缩放
+    horizontal_flip=True,        # 水平翻转
+    fill_mode='nearest'          # 填充模式
+)
+
+# 计算增强数据的生成器
+datagen.fit(x_train)
+
+# 搭建卷积神经网络（CNN）
+model = models.Sequential([
+    layers.Conv2D(32, (3, 3), activation='relu', input_shape=(32, 32, 3)),
+    layers.MaxPooling2D((2, 2)),
+    layers.Conv2D(64, (3, 3), activation='relu'),
+    layers.MaxPooling2D((2, 2)),
+    layers.Conv2D(64, (3, 3), activation='relu'),
+    layers.Flatten(),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(10, activation='softmax')  # 输出10个类别
+])
+
+# 查看模型结构
+model.summary()
+
+# 编译模型
+model.compile(optimizer='adam',
+              loss='sparse_categorical_crossentropy',
+              metrics=['accuracy'])
+
+# 训练模型
+model.fit(datagen.flow(x_train, y_train, batch_size=64), epochs=10, validation_data=(x_test, y_test))
+
+# 评估模型性能
+test_loss, test_acc = model.evaluate(x_test, y_test)
+print(f'测试集上的损失值: {test_loss:.4f}')
+print(f'测试集上的准确率: {test_acc:.4f}')
+
+# 进行推理 (预测)
+predictions = model.predict(x_test)
+
+# 输出前5个测试样本的预测结果
+for i in range(5):
+    plt.imshow(x_test[i])
+    plt.title(f'预测: {np.argmax(predictions[i])}, 真实: {y_test[i][0]}')
+    plt.show()

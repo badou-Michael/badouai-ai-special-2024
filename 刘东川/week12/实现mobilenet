@@ -1,0 +1,60 @@
+import tensorflow as tf
+from tensorflow.keras import layers, models
+
+# ConvBlock：普通卷积块，包含标准卷积层和激活层
+def ConvBlock(x, filters, kernel_size, stride=1):
+    x = layers.Conv2D(filters, kernel_size=kernel_size, strides=stride, padding='same', activation='relu')(x)
+    return x
+
+# DepthwiseConvBlock：深度可分离卷积块，包括深度卷积和逐点卷积
+def DepthwiseConvBlock(x, filters, kernel_size, stride=1):
+    # 深度卷积：在每个通道上分别应用卷积
+    x = layers.DepthwiseConv2D(kernel_size=kernel_size, strides=stride, padding='same', activation='relu')(x)
+    # 逐点卷积：1x1卷积将通道混合起来
+    x = layers.Conv2D(filters, kernel_size=1, padding='same', activation='relu')(x)
+    return x
+
+# MobileNet模型：结合ConvBlock和DepthwiseConvBlock
+def MobileNet(input_shape=(224, 224, 3), num_classes=1000):
+    inputs = layers.Input(shape=input_shape)
+
+    # 第一层卷积：标准卷积层，过滤器为32，步长为2
+    x = ConvBlock(inputs, 32, kernel_size=3, stride=2)
+
+    # 第二层到第四层：深度可分离卷积块（DepthwiseConvBlock）
+    x = DepthwiseConvBlock(x, 64, kernel_size=3, stride=1)
+    x = DepthwiseConvBlock(x, 128, kernel_size=3, stride=2)
+    x = DepthwiseConvBlock(x, 128, kernel_size=3, stride=1)
+    
+    # 第五层到第七层：继续使用深度可分离卷积块
+    x = DepthwiseConvBlock(x, 256, kernel_size=3, stride=2)
+    x = DepthwiseConvBlock(x, 256, kernel_size=3, stride=1)
+    x = DepthwiseConvBlock(x, 512, kernel_size=3, stride=2)
+    
+    # 使用多个重复的深度可分离卷积块
+    for _ in range(5):
+        x = DepthwiseConvBlock(x, 512, kernel_size=3, stride=1)
+
+    # 最后一层：深度可分离卷积，输出1024通道
+    x = DepthwiseConvBlock(x, 1024, kernel_size=3, stride=2)
+
+    # 全局平均池化：将空间维度压缩为1
+    x = layers.GlobalAveragePooling2D()(x)
+
+    # 全连接层
+    x = layers.Dense(1024, activation='relu')(x)
+    x = layers.Dense(num_classes, activation='softmax')(x)
+
+    # 构建模型
+    model = models.Model(inputs, x, name='MobileNetWithBlocks')
+
+    return model
+
+# 创建模型
+model = MobileNet(input_shape=(224, 224, 3), num_classes=1000)
+
+# 编译模型
+model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+
+# 打印模型结构
+model.summary()

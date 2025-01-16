@@ -1,0 +1,115 @@
+import tensorflow as tf
+from tensorflow.keras import layers, models
+
+# ConvBlock: 用于改变特征图大小的卷积块
+def ConvBlock(x, filters, kernel_size=3, stride=2, name=None):
+    # 保存输入的shortcut
+    shortcut = x
+
+    # 第一层卷积
+    x = layers.Conv2D(filters, kernel_size, strides=stride, padding='same', name=name+'_conv1')(x)
+    x = layers.BatchNormalization(name=name+'_bn1')(x)
+    x = layers.ReLU()(x)
+
+    # 第二层卷积
+    x = layers.Conv2D(filters, kernel_size, strides=1, padding='same', name=name+'_conv2')(x)
+    x = layers.BatchNormalization(name=name+'_bn2')(x)
+
+    # 如果shortcut的维度与输出不一致，使用1x1卷积调整
+    if shortcut.shape[-1] != filters:
+        shortcut = layers.Conv2D(filters, (1, 1), strides=stride, padding='same', name=name+'_shortcut')(shortcut)
+
+    # 跳跃连接
+    x = layers.Add()([x, shortcut])
+    x = layers.ReLU()(x)
+
+    return x
+
+# IdentityBlock: 用于保持特征图大小不变的卷积块
+def IdentityBlock(x, filters, kernel_size=3, name=None):
+    shortcut = x
+
+    # 第一层卷积
+    x = layers.Conv2D(filters, kernel_size, strides=1, padding='same', name=name+'_conv1')(x)
+    x = layers.BatchNormalization(name=name+'_bn1')(x)
+    x = layers.ReLU()(x)
+
+    # 第二层卷积
+    x = layers.Conv2D(filters, kernel_size, strides=1, padding='same', name=name+'_conv2')(x)
+    x = layers.BatchNormalization(name=name+'_bn2')(x)
+
+    # 跳跃连接
+    x = layers.Add()([x, shortcut])
+    x = layers.ReLU()(x)
+
+    return x
+
+def ResNet50(input_shape=(32, 32, 3), num_classes=10):
+    inputs = layers.Input(shape=input_shape)
+
+    # 初始的卷积层和池化层
+    x = layers.Conv2D(64, (7, 7), padding='same', strides=2)(inputs)
+    x = layers.BatchNormalization()(x)
+    x = layers.ReLU()(x)
+    x = layers.MaxPooling2D(pool_size=(3, 3), strides=2, padding='same')(x)
+
+    # 第一层: 1 个 ConvBlock + 2 个 IdentityBlock
+    x = ConvBlock(x, 64, stride=1, name='conv_block1')
+    x = IdentityBlock(x, 64, name='identity_block1')
+    x = IdentityBlock(x, 64, name='identity_block2')
+
+    # 第二层: 1 个 ConvBlock + 3 个 IdentityBlock
+    x = ConvBlock(x, 128, stride=2, name='conv_block2')
+    x = IdentityBlock(x, 128, name='identity_block3')
+    x = IdentityBlock(x, 128, name='identity_block4')
+    x = IdentityBlock(x, 128, name='identity_block5')
+
+    # 第三层: 1 个 ConvBlock + 5 个 IdentityBlock
+    x = ConvBlock(x, 256, stride=2, name='conv_block3')
+    for i in range(1, 6):
+        x = IdentityBlock(x, 256, name=f'identity_block{i+5}')
+
+    # 第四层: 1 个 ConvBlock + 2 个 IdentityBlock
+    x = ConvBlock(x, 512, stride=2, name='conv_block4')
+    x = IdentityBlock(x, 512, name='identity_block11')
+    x = IdentityBlock(x, 512, name='identity_block12')
+
+    # 全局池化 + 全连接层
+    x = layers.GlobalAveragePooling2D()(x)
+    x = layers.Dense(num_classes, activation='softmax')(x)
+
+    model = models.Model(inputs, x, name='ResNet50')
+    return model
+
+# 加载CIFAR-10数据集
+(x_train, y_train), (x_test, y_test) = tf.keras.datasets.cifar10.load_data()
+x_train, x_test = x_train / 255.0, x_test / 255.0  # 归一化
+
+# 创建ResNet50模型
+model = ResNet50()
+
+# 编译模型
+model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+
+# 打印模型结构
+model.summary()
+
+# 训练模型
+model.fit(x_train, y_train, epochs=10, batch_size=64, validation_data=(x_test, y_test))
+# 推理（Inference）部分
+
+# 使用训练好的模型进行推理
+# 使用 model.predict 对测试集进行预测
+predictions = model.predict(x_test)
+
+# 输出预测结果的前几个
+print("预测的前几个类别：")
+print(tf.argmax(predictions, axis=1)[:10])  # 打印预测的类别（每个样本的类别索引）
+
+# 输出预测概率的前几个
+print("预测的前几个概率：")
+print(predictions[:10])  # 打印前10个样本的预测概率
+
+# 评估模型的准确性
+test_loss, test_acc = model.evaluate(x_test, y_test)
+print(f"测试集损失：{test_loss}, 测试集准确率：{test_acc}")

@@ -1,0 +1,48 @@
+import tensorflow as tf
+import numpy as np
+import matplotlib.pyplot as plt
+
+# np生成2000个随机点，一维数组转二维数组
+x_data = np.linspace(-0.5, 0.5, 2000)[:, np.newaxis]
+noise = np.random.normal(0, 0.02, x_data.shape)
+y_data = np.square(x_data)+noise
+
+# 占位存放数据，形状为[None, 1]
+x = tf.placeholder(tf.float32, [None, 1])
+y = tf.placeholder(tf.float32, [None, 1])
+
+# net中间层
+w_L1 = tf.Variable(tf.random_normal([1, 10]))
+b_L1 = tf.Variable(tf.zeros([1, 10]))
+inputs_L1 = tf.matmul(x, w_L1) + b_L1
+output_L1 = tf.nn.tanh(inputs_L1)
+
+# net输出层
+w_L2 = tf.Variable(tf.random_normal([10, 1]))
+b_L2 = tf.Variable(tf.zeros([1, 1]))
+inputs_L2 = tf.matmul(output_L1, w_L2) + b_L2
+prediction = tf.nn.tanh(inputs_L2)
+
+# 损失函数
+loss = tf.reduce_mean(tf.square(y-prediction))
+# 反向传播
+train_step = tf.train.GradientDescentOptimizer(0.1).minimize(loss)
+
+
+# sess激活
+with tf.Session() as sess:
+    # 变量初始化
+    sess.run(tf.global_variables_initializer())
+    # 训练2000次
+    epochs = 2000
+    for i in range(epochs):
+        sess.run(train_step, feed_dict={x: x_data, y: y_data})
+
+    # 获得预测值
+    prediction_value = sess.run(prediction, feed_dict={x: x_data})
+
+
+    plt.figure()
+    plt.scatter(x_data, y_data, s=0.1)
+    plt.plot(x_data, prediction_value, 'r', lw=1.5)
+    plt.show()
