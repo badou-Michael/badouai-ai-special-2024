@@ -1,0 +1,159 @@
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+
+# P-Net: Proposal Network
+class PNet(nn.Module):
+    def __init__(self):
+        super(PNet, self).__init__()
+
+        # 第一层卷积：输入3通道图像，输出10通道特征图，卷积核3x3，步幅1，填充1
+        self.conv1 = nn.Conv2d(3, 10, kernel_size=3, stride=1, padding=1)
+        # 第二层卷积：输入10通道，输出16通道特征图，卷积核3x3，步幅2，填充1
+        self.conv2 = nn.Conv2d(10, 16, kernel_size=3, stride=2, padding=1)
+        # 第三层卷积：输入16通道，输出32通道特征图，卷积核3x3，步幅2，填充1
+        self.conv3 = nn.Conv2d(16, 32, kernel_size=3, stride=2, padding=1)
+
+        # 分类分支：通过1x1卷积进行分类，输出2个通道（人脸/非人脸）
+        self.cls_conv = nn.Conv2d(32, 2, kernel_size=1, stride=1, padding=0)
+        # 框回归分支：通过1x1卷积进行框回归，输出4个通道（预测的bbox偏移量）
+        self.bbox_conv = nn.Conv2d(32, 4, kernel_size=1, stride=1, padding=0)
+
+    def forward(self, x):
+        # 输入x的尺寸应该为 (batch_size, 3, 12, 12)，也就是12x12的RGB图像
+        x = F.relu(self.conv1(x))  # 输出尺寸 (batch_size, 10, 12, 12)
+        x = F.relu(self.conv2(x))  # 输出尺寸 (batch_size, 16, 6, 6)
+        x = F.relu(self.conv3(x))  # 输出尺寸 (batch_size, 32, 3, 3)
+
+        # 分类分支，输出人脸/非人脸的分类结果 (batch_size, 2, 3, 3)
+        cls_output = self.cls_conv(x)
+
+        # 框回归分支，输出框的回归结果 (batch_size, 4, 3, 3)
+        bbox_output = self.bbox_conv(x)
+
+        # 返回分类和框回归结果
+        return cls_output, bbox_output
+
+
+class RNet(nn.Module):
+    def __init__(self):
+        super(RNet, self).__init__()
+
+        # 第一层卷积：输入3通道图像，输出28通道特征图，卷积核3x3，步幅1，填充1
+        self.conv1 = nn.Conv2d(3, 28, kernel_size=3, stride=1, padding=1)
+
+        # 第二层卷积：输入28通道，输出48通道特征图，卷积核3x3，步幅2，填充1，尺寸减半
+        self.conv2 = nn.Conv2d(28, 48, kernel_size=3, stride=2, padding=1)
+
+        # 第三层卷积：输入48通道，输出64通道特征图，卷积核3x3，步幅2，填充1，尺寸再减半
+        self.conv3 = nn.Conv2d(48, 64, kernel_size=3, stride=2, padding=1)
+
+        # 分类分支：通过1x1卷积进行分类，输出2个通道（人脸/非人脸）
+        self.cls_conv = nn.Conv2d(64, 2, kernel_size=1, stride=1, padding=0)
+
+        # 框回归分支：通过1x1卷积进行框回归，输出4个通道（预测的bbox偏移量）
+        self.bbox_conv = nn.Conv2d(64, 4, kernel_size=1, stride=1, padding=0)
+
+    def forward(self, x):
+        # 输入x的尺寸应该为 (batch_size, 3, 24, 24)，也就是24x24的RGB图像
+        x = F.relu(self.conv1(x))  # 输出尺寸 (batch_size, 28, 24, 24)
+        x = F.relu(self.conv2(x))  # 输出尺寸 (batch_size, 48, 12, 12)
+        x = F.relu(self.conv3(x))  # 输出尺寸 (batch_size, 64, 6, 6)
+
+        # 分类分支，输出人脸/非人脸的分类结果 (batch_size, 2, 6, 6)
+        cls_output = self.cls_conv(x)
+
+        # 框回归分支，输出框的回归结果 (batch_size, 4, 6, 6)
+        bbox_output = self.bbox_conv(x)
+
+        # 返回分类和框回归结果
+        return cls_output, bbox_output
+
+class ONet(nn.Module):
+    def __init__(self):
+        super(ONet, self).__init__()
+
+        # 第一层卷积：输入3通道图像，输出32通道特征图，卷积核3x3，步幅1，填充1
+        self.conv1 = nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1)
+
+        # 第二层卷积：输入32通道，输出64通道特征图，卷积核3x3，步幅2，填充1，尺寸减半
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=2, padding=1)
+
+        # 第三层卷积：输入64通道，输出64通道特征图，卷积核3x3，步幅2，填充1，尺寸再减半
+        self.conv3 = nn.Conv2d(64, 64, kernel_size=3, stride=2, padding=1)
+
+        # 第四层卷积：输入64通道，输出128通道特征图，卷积核3x3，步幅2，填充1，尺寸进一步减小
+        self.conv4 = nn.Conv2d(64, 128, kernel_size=3, stride=2, padding=1)
+
+        # 分类分支：通过1x1卷积进行分类，输出2个通道（人脸/非人脸）
+        self.cls_conv = nn.Conv2d(128, 2, kernel_size=1, stride=1, padding=0)
+
+        # 框回归分支：通过1x1卷积进行框回归，输出4个通道（预测的bbox偏移量）
+        self.bbox_conv = nn.Conv2d(128, 4, kernel_size=1, stride=1, padding=0)
+
+        # 关键点回归分支：通过1x1卷积进行关键点回归，输出10个通道（5个关键点的坐标）
+        self.kp_conv = nn.Conv2d(128, 10, kernel_size=1, stride=1, padding=0)
+
+    def forward(self, x):
+        # 输入x的尺寸应该为 (batch_size, 3, 48, 48)，也就是48x48的RGB图像
+        x = F.relu(self.conv1(x))  # 输出尺寸 (batch_size, 32, 48, 48)
+        x = F.relu(self.conv2(x))  # 输出尺寸 (batch_size, 64, 24, 24)
+        x = F.relu(self.conv3(x))  # 输出尺寸 (batch_size, 64, 12, 12)
+        x = F.relu(self.conv4(x))  # 输出尺寸 (batch_size, 128, 6, 6)
+
+        # 分类分支，输出人脸/非人脸的分类结果 (batch_size, 2, 6, 6)
+        cls_output = self.cls_conv(x)
+
+        # 框回归分支，输出框的回归结果 (batch_size, 4, 6, 6)
+        bbox_output = self.bbox_conv(x)
+
+        # 关键点回归分支，输出5个关键点的坐标 (batch_size, 10, 6, 6)
+        kp_output = self.kp_conv(x)
+
+        # 返回分类、框回归和关键点回归结果
+        return cls_output, bbox_output, kp_output
+
+
+# MTCNN 完整模型
+class MTCNN(nn.Module):
+    def __init__(self):
+        super(MTCNN, self).__init__()
+        self.pnet = PNet()  # 初始化P-Net
+        self.rnet = RNet()  # 初始化R-Net
+        self.onet = ONet()  # 初始化O-Net
+
+    def forward(self, x):
+        # P-Net的前向传播
+        cls_output_pnet, bbox_output_pnet = self.pnet(x)
+
+        # 通过P-Net输出的框，进行非极大值抑制（NMS），筛选出人脸候选框
+        # 此时一般会使用IoU（交并比）阈值来过滤掉不合适的框。此部分通常在前处理阶段处理
+
+        # 通过R-Net进一步筛选和优化候选框
+        cls_output_rnet, bbox_output_rnet = self.rnet(x)
+
+        # 通过O-Net对候选框进一步优化，并预测关键点
+        cls_output_onet, bbox_output_onet, kp_output_onet = self.onet(x)
+
+        return cls_output_pnet, bbox_output_pnet, cls_output_rnet, bbox_output_rnet, cls_output_onet, bbox_output_onet, kp_output_onet
+
+
+# 创建 MTCNN 模型实例
+model = MTCNN()
+
+# 示例输入，假设输入为 12x12x3 图像（这只是一个示例）
+input_data = torch.randn(1, 3, 12, 12)  # 输入样本
+
+# 进行前向传播
+cls_output_pnet, bbox_output_pnet, cls_output_rnet, bbox_output_rnet, cls_output_onet, bbox_output_onet, kp_output_onet = model(
+    input_data)
+
+# 打印输出的尺寸
+print("P-Net 分类输出尺寸:", cls_output_pnet.shape)
+print("P-Net 边界框回归输出尺寸:", bbox_output_pnet.shape)
+print("R-Net 分类输出尺寸:", cls_output_rnet.shape)
+print("R-Net 边界框回归输出尺寸:", bbox_output_rnet.shape)
+print("O-Net 分类输出尺寸:", cls_output_onet.shape)
+print("O-Net 边界框回归输出尺寸:", bbox_output_onet.shape)
+print("O-Net 关键点回归输出尺寸:", kp_output_onet.shape)
