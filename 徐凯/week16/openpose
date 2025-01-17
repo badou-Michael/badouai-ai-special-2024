@@ -1,0 +1,41 @@
+import cv2
+import torch
+import numpy as np
+import torchvision.transforms as transforms
+
+# 在github上加载模型与训练权重
+model = torch.hub.load('CMU-Visual-Computing-Lab/openpose', 'pose_resnet50', pretrained=True)
+
+
+# 图像预处理
+def preprocess_image(image):
+    transform = transforms.Compose([
+        transforms.ToTensor(),
+        # 三个颜色通道在数据集上的均值与标准差
+        transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
+    ])
+    # 加一个批次维度
+    return transform(image).unsqueeze(0)
+
+
+image = cv2.imread('1111.jpg')
+image_tensor = preprocess_image(image)
+
+# 推理
+with torch.no_grad():
+    output = model(image_tensor)
+
+# 将模型输出的第一个样本torch张量转换为NumPy数组
+heatmaps = output[0].numpy()
+print(heatmaps.shape)
+keypoints =np.argmax(heatmaps, axis=0)
+
+for i in range(keypoints.shape[0]):
+    # 关键点对应热图中最大响应的位置的索引
+    y, x = np.unravel_index(np.argmax(heatmaps[i]), heatmaps[i].shape)
+    # 图像、圆心坐标、半径、颜色（BGR格式）、以及厚度（-1表示填充圆）
+    cv2.circle(image, (x, y), 5, (0, 255, 0), -1)
+
+cv2.imshow('keypoint', image)
+cv2.waitKey()
+cv2.destroyAllWindows()
