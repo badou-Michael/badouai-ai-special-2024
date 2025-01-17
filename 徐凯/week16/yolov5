@@ -1,0 +1,16 @@
+import torch
+import cv2
+
+model = torch.hub.load('ultralytics/yolov5', 'yolov5s')
+
+image = cv2.imread('img.png')
+
+results = model(image)
+
+output_img = cv2.resize(results.render()[0], (512, 512))
+print(output_img.shape)
+
+# 显示图像
+cv2.imshow('YOLOv5', output_img)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
