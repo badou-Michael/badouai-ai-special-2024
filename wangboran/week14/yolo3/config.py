@@ -1,0 +1,14 @@
+gpu_index = "0"
+input_shape = 416
+pre_train_yolo3 = True
+image_file = "./img/img2.jpg"
+model_dir = './test_model/model.ckpt-192192' # 未使用
+yolo3_weights_path = './model_data/yolov3.weights'
+obj_threshold = 0.5
+nms_threshold = 0.5
+anchors_path = './model_data/yolo_anchors.txt'
+classes_path = './model_data/coco_classes.txt'
+num_anchors = 9
+num_classes = 80
+norm_decay = 0.99
+norm_epsilon = 1e-3
